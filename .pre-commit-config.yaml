@@ -15,3 +15,9 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
       - id: check-toml
+
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout          # removes notebook outputs (which can contain data) before every commit
