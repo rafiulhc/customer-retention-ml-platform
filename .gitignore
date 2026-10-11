@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Data and models: tracked with DVC / MLflow instead
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+mlruns/
+*.joblib
+*.pkl
+
+# Notebooks' saved outputs can leak data; keep notebooks small
+.ipynb_checkpoints/
+
+# OS / editors
+.DS_Store

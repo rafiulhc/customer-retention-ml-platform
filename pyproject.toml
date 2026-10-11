@@ -1,0 +1,44 @@
+[project]
+name = "retention"
+version = "0.1.0"
+description = "Customer retention ML platform: predicts which customers are likely to cancel, end to end (data, training, tracking, serving, monitoring, retraining)."
+readme = "README.md"
+authors = [
+    { name = "RAFIUL86", email = "rafiulhasan86@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.0.6",
+    "pyarrow>=26.0.0",
+]
+
+[project.scripts]
+retention = "retention:main"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "mypy>=2.4.0",
+    "pandas-stubs>=3.0.5.260914",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]   # errors, pyflakes, import order, bugbear, modern syntax, simplify
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
