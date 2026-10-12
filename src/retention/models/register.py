@@ -88,8 +88,15 @@ def register(
     version = str(info.registered_model_version)
     client.update_registered_model(name, description=DESCRIPTION)
     run_tags = client.get_run(run.info.run_id).data.tags
-    for key in ("code.git_commit", "code.git_dirty", "data.train_sha256", "model_family"):
-        client.set_model_version_tag(name, version, key, run_tags[key])
+    for key in (
+        "code.git_commit",
+        "code.git_dirty",
+        "data.train_sha256",
+        "data.train_content_sha256",
+        "model_family",
+    ):
+        if key in run_tags:
+            client.set_model_version_tag(name, version, key, run_tags[key])
 
     promoted = promote or (first_becomes_champion and current_champion(client, name) is None)
     if promoted:

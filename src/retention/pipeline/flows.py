@@ -25,6 +25,7 @@ from prefect.artifacts import create_markdown_artifact
 from retention.data.download import download
 from retention.data.prepare import PROCESSED_DIR, prepare
 from retention.evaluation import evaluate, gate
+from retention.lineage import same_training_data
 from retention.models.champion import (
     CHAMPION,
     MODEL_NAME,
@@ -56,8 +57,8 @@ def needs_training(manifest: dict[str, Any], force: bool) -> tuple[bool, str]:
     champion = current_champion(MlflowClient())
     if champion is None:
         return True, "no champion yet"
-    trained_on = MlflowClient().get_model_version(MODEL_NAME, champion).tags.get("data.train_sha256")
-    if manifest["outputs"]["train"]["sha256"] != trained_on:
+    tags = MlflowClient().get_model_version(MODEL_NAME, champion).tags
+    if not same_training_data(tags, PROCESSED_DIR / manifest["outputs"]["train"]["file"]):
         return True, "the training data changed since the champion was trained"
     if force:
         return True, "forced (the data is unchanged)"

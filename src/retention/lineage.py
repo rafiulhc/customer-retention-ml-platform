@@ -6,11 +6,15 @@ exact commit and exact data files (by checksum), and reproduced.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 
-from retention.data.download import PROJECT_ROOT
+import pandas as pd
+
+from retention.data.download import PROJECT_ROOT, sha256_of
 
 MANIFEST_PATH = PROJECT_ROOT / "data" / "processed" / "manifest.json"
 
@@ -34,6 +38,25 @@ def git_dirty() -> bool | None:
     return None if status is None else bool(status)
 
 
+def content_sha256(df: pd.DataFrame) -> str:
+    """A fingerprint of the data itself: column names, types and values, in order.
+
+    Unlike the file's checksum, it doesn't change when the same data is written by a different library
+    version (Parquet files record the writer's version), so it answers "is this the same data?".
+    """
+    digest = hashlib.sha256(json.dumps([[str(c), str(t)] for c, t in df.dtypes.items()]).encode())
+    digest.update(pd.util.hash_pandas_object(df, index=False).to_numpy().tobytes())
+    return digest.hexdigest()
+
+
+def same_training_data(version_tags: Mapping[str, str], train_path: Path) -> bool:
+    """Was a model version trained on the data in `train_path`? Compares content when the version has a
+    content fingerprint, otherwise the file checksum (versions registered before fingerprints existed)."""
+    if "data.train_content_sha256" in version_tags:
+        return version_tags["data.train_content_sha256"] == content_sha256(pd.read_parquet(train_path))
+    return version_tags.get("data.train_sha256") == sha256_of(train_path)
+
+
 def data_lineage(manifest_path: Path = MANIFEST_PATH) -> dict[str, str]:
     """Checksums of the raw and processed data, read from the manifest written by `prepare`."""
     if not manifest_path.exists():
@@ -49,6 +72,8 @@ def data_lineage(manifest_path: Path = MANIFEST_PATH) -> dict[str, str]:
     for name, info in manifest["outputs"].items():
         tags[f"data.{name}_sha256"] = info["sha256"]
         tags[f"data.{name}_rows"] = str(info["rows"])
+        if "content_sha256" in info:  # manifests written before fingerprints existed don't have it
+            tags[f"data.{name}_content_sha256"] = info["content_sha256"]
     return tags
 
 

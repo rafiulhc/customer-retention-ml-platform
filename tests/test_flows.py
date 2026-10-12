@@ -14,6 +14,7 @@ from prefect.testing.utilities import prefect_test_harness
 from retention import lineage
 from retention.data.download import sha256_of
 from retention.evaluation import evaluate, gate
+from retention.lineage import content_sha256
 from retention.models.champion import MODEL_NAME, current_champion
 from retention.pipeline import flows
 from tests.conftest import MANIFEST
@@ -41,6 +42,9 @@ def learnable_dataset(n: int, seed: int) -> pd.DataFrame:
     return clean_customers(*specs)
 
 
+WRITER = {"compression": "snappy"}  # how fake_prepare writes train.parquet; a test changes it
+
+
 @pytest.fixture(scope="module")
 def prefect_backend() -> Iterator[None]:
     with prefect_test_harness():  # a throwaway Prefect database, so tests never touch the real server
@@ -53,12 +57,14 @@ def _pipeline(
     """The flow's data steps write small files instead of downloading the real dataset."""
     data = tmp_path / "processed"
     data.mkdir()
+    writer = WRITER
 
     def fake_prepare() -> dict[str, Any]:
-        train.to_parquet(data / "train.parquet", index=False)
+        train.to_parquet(data / "train.parquet", index=False, compression=writer["compression"])
         test.to_parquet(data / "test.parquet", index=False)
         manifest = json.loads(json.dumps(MANIFEST))
         manifest["outputs"]["train"]["sha256"] = sha256_of(data / "train.parquet")
+        manifest["outputs"]["train"]["content_sha256"] = content_sha256(train)
         (tmp_path / "manifest.json").write_text(json.dumps(manifest))
         return manifest
 
@@ -130,3 +136,16 @@ def test_a_broken_challenger_fails_the_run_before_evaluation(
         flows.retrain()
     assert current_champion(MlflowClient()) is None  # registered as v1, never evaluated, never promoted
     assert not MlflowClient().get_model_version(MODEL_NAME, "1").tags.get("evaluation_run_id")
+
+
+def test_same_data_in_a_differently_written_file_is_not_new_data(
+    pipeline: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a library upgrade rewrote identical data with different bytes, and the pipeline
+    retrained. The decision now compares the data's content, not the file's checksum."""
+    flows.retrain()
+    before = sha256_of(pipeline / "train.parquet")
+    monkeypatch.setitem(WRITER, "compression", "gzip")  # same rows, different file bytes
+    outcome = flows.retrain()
+    assert sha256_of(pipeline / "train.parquet") != before
+    assert outcome["outcome"] == "skipped"

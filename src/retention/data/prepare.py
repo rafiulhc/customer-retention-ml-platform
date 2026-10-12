@@ -18,7 +18,7 @@ from retention.data.clean import TARGET, clean
 from retention.data.download import PROJECT_ROOT, RAW_PATH, download, sha256_of
 from retention.data.schema import CLEAN_SCHEMA
 from retention.data.split import SEED, TEST_SIZE, split
-from retention.lineage import git_commit
+from retention.lineage import content_sha256, git_commit
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,8 @@ def _summary(df: pd.DataFrame, path: Path) -> dict[str, Any]:
         "file": path.name,
         "rows": len(df),
         "churn_rate": round(float(df[TARGET].mean()), 4),
-        "sha256": sha256_of(path),
+        "sha256": sha256_of(path),  # the file: detects corruption or tampering
+        "content_sha256": content_sha256(df),  # the data: detects real changes (see lineage.py)
     }
 
 

@@ -71,3 +71,22 @@ def test_unreachable_server_fails_fast_with_a_hint() -> None:
 
 def test_local_stores_need_no_server() -> None:
     tracking.check_server("sqlite:///anything.db")  # no error, no network
+
+
+def test_content_fingerprint_ignores_how_the_file_was_written(tmp_path: Path) -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    df.to_parquet(tmp_path / "snappy.parquet", compression="snappy")
+    df.to_parquet(tmp_path / "gzip.parquet", compression="gzip")
+    snappy, gzipped = pd.read_parquet(tmp_path / "snappy.parquet"), pd.read_parquet(tmp_path / "gzip.parquet")
+    assert lin.sha256_of(tmp_path / "snappy.parquet") != lin.sha256_of(tmp_path / "gzip.parquet")
+    assert lin.content_sha256(snappy) == lin.content_sha256(gzipped)
+
+
+def test_content_fingerprint_changes_when_the_data_changes() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    assert lin.content_sha256(df) != lin.content_sha256(df.assign(a=[1, 2, 4]))
+    assert lin.content_sha256(df) != lin.content_sha256(df.astype({"a": float}))  # types are part of the data

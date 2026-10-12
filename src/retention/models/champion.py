@@ -20,7 +20,6 @@ from mlflow.exceptions import MlflowException
 from mlflow.pyfunc import PyFuncModel
 
 from retention.config import FEATURES, TARGET
-from retention.data.download import sha256_of
 
 MODEL_NAME = "customer-retention-model"
 CHAMPION = "champion"
@@ -125,6 +124,7 @@ def reproduces(model: PyFuncModel, train: pd.DataFrame, sample: pd.DataFrame) ->
 
 def main() -> int:
     from retention.data.prepare import PROCESSED_DIR
+    from retention.lineage import same_training_data
     from retention.tracking import configure
 
     configure()
@@ -137,7 +137,7 @@ def main() -> int:
     train = pd.read_parquet(train_path)
     sample = model_input(train.head(200))
     checks = verify(model, sample)
-    if sha256_of(train_path) == version.tags.get("data.train_sha256"):
+    if same_training_data(version.tags, train_path):
         checks.append(reproduces(model, train, sample))
     else:  # different data: a retrain can't be compared, and the champion may be stale
         checks.append(Check("trained on the current training data", False, "train.parquet has changed"))

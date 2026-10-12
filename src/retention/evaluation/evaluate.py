@@ -39,7 +39,6 @@ from retention.config import (
     PROFIT_NON_INFERIORITY_FRACTION,
     TARGET,
 )
-from retention.data.download import sha256_of
 from retention.data.prepare import PROCESSED_DIR
 from retention.evaluation import plots
 from retention.evaluation.bootstrap import Comparison, paired_bootstrap
@@ -52,6 +51,7 @@ from retention.evaluation.explain import global_importance, shap_values, top_rea
 from retention.evaluation.oof import out_of_fold
 from retention.evaluation.policy import Policy, choose_threshold, contact_mask, profit, profit_curve
 from retention.evaluation.segments import largest_gap, segment_report
+from retention.lineage import same_training_data
 from retention.models.baselines import ContractTenureRule
 from retention.models.champion import CHAMPION, MODEL_NAME, model_input
 from retention.models.metrics import evaluate, expected_profit_at_k
@@ -134,7 +134,7 @@ def run(force: bool = False, version_number: str | None = None) -> dict[str, Any
     _check_once(client, version, force)
 
     train_path, test_path = PROCESSED_DIR / "train.parquet", PROCESSED_DIR / "test.parquet"
-    if sha256_of(train_path) != version.tags.get("data.train_sha256"):
+    if not same_training_data(version.tags, train_path):
         raise RuntimeError(
             f"Version {version.version} was trained on different data than train.parquet; "
             "re-register it first."
