@@ -103,3 +103,18 @@ terraform init && terraform plan -out tfplan && terraform apply tfplan  # phase 
    locally. The model registered during that failed run was **never promoted**: verification stopped the run first.
 6. **A false alarm:** on Linux, XGBoost edged out logistic regression by a hair, a tie. The "revisit the model
    choice" warning now needs a gap beyond 0.005 PR-AUC.
+7. **GitHub's OIDC identity uses permanent IDs.** The token's subject is
+   `repo:owner@<id>/name@<id>:ref:refs/heads/main`, so a name-only trust condition was refused. CloudTrail
+   showed the exact subject GitHub presented. The trust now matches the IDs, which is also safer: re-creating
+   a deleted repository's name can't take over the role.
+8. **A new advisory appeared between two CI runs on the same day:** `diskcache` (via DVC) has an unsafe pickle
+   loading issue and no fixed release yet. It is dev-only (in no image), so it is accepted explicitly in
+   `ci.yml` with the reason and a re-check note, rather than turning the audit off.
+
+### Release through GitHub (OIDC)
+
+The *Publish images* workflow built all three images on GitHub's arm64 runners and pushed them as `v3`, with no
+AWS keys stored in GitHub. Same sizes as the local builds. `terraform apply` with `image_tags = v3` rolled them out:
+MLflow restarted, and the API did a zero-downtime rolling deploy, completing after ECS's alarm-watching period.
+The retrain task on the CI-built image correctly reported "nothing to do". CI is green on the same commit, and
+`terraform plan` shows no drift.
