@@ -1,0 +1,90 @@
+# Local MLOps services. Credentials here are for LOCAL DEVELOPMENT ONLY (on AWS: Secrets Manager).
+#   docker compose up -d        MLflow UI: http://localhost:5001
+# Port 5001 because macOS uses 5000 for AirPlay Receiver.
+
+services:
+  postgres:
+    image: postgres:17.11
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow-local
+      POSTGRES_DB: mlflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow -d mlflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  seaweedfs:
+    # S3-compatible object storage (Apache-2.0). MinIO's open-source edition was archived in 2026.
+    image: chrislusf/seaweedfs:4.47
+    command: >
+      server -dir=/data -ip.bind=0.0.0.0 -volume.max=0 -master.volumeSizeLimitMB=1024
+      -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    volumes:
+      - seaweedfs-data:/data
+      - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    ports:
+      - "8333:8333"  # S3 API (only needed from the host for debugging)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  create-bucket:
+    # One-off job: makes sure the artifact bucket exists, then exits.
+    build: ./infra/mlflow
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment: &s3-credentials
+      AWS_ACCESS_KEY_ID: mlflow-local
+      AWS_SECRET_ACCESS_KEY: mlflow-local-secret
+      AWS_DEFAULT_REGION: us-east-1
+      MLFLOW_S3_ENDPOINT_URL: http://seaweedfs:8333
+    entrypoint: ["python", "-c"]
+    command:
+      - |
+        import time, boto3
+        s3 = boto3.client("s3", endpoint_url="http://seaweedfs:8333")
+        for attempt in range(30):
+            try:
+                if "mlflow-artifacts" not in [b["Name"] for b in s3.list_buckets().get("Buckets", [])]:
+                    s3.create_bucket(Bucket="mlflow-artifacts")
+                print("bucket mlflow-artifacts ready"); break
+            except Exception as e:  # S3 gateway may still be starting
+                print(f"waiting for S3 ({e.__class__.__name__}: {e})"); time.sleep(2)
+        else:
+            raise SystemExit("S3 never became ready")
+    restart: "no"
+
+  mlflow:
+    build: ./infra/mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      create-bucket:
+        condition: service_completed_successfully
+    environment:
+      <<: *s3-credentials
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://mlflow:mlflow-local@postgres:5432/mlflow
+      --artifacts-destination s3://mlflow-artifacts
+      --serve-artifacts
+      --allowed-hosts "localhost:*,127.0.0.1:*,mlflow:*"
+    ports:
+      - "5001:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  seaweedfs-data:
