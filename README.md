@@ -21,6 +21,10 @@ cp .env.example .env             # once: tracking URI and local settings (no sec
 docker compose up -d --wait      # Postgres + SeaweedFS (S3) + MLflow server
 uv run python -m retention.tracking         # check the connection and the lineage tags
 uv run python -m retention.models.train     # model comparison -> MLflow
+uv run python -m retention.models.register  # train the chosen model, register a new version
 ```
 
 MLflow UI: <http://localhost:5001>. Run data lives in Docker volumes; `docker compose down` keeps it.
+
+The model registry holds `customer-retention-model`. Serving loads `models:/customer-retention-model@champion`.
+The first version becomes `@champion` automatically; later versions need `--promote`.
