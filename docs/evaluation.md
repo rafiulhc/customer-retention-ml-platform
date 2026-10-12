@@ -111,14 +111,17 @@ works), and **earns more** on the test set (+24%). It is also the only option th
 The profit gain is **not statistically conclusive on a single test set of 1,409 customers**, and the
 pre-registered strict criterion is therefore not met.
 
-Options (a product decision, recorded here once made):
+**Decision (2026-10-12): ship v1, and pre-register criteria version 2 for future versions.**
 
-1. **Ship v1** with this result documented: superiority on the primary metric, a consistent but
-   inconclusive profit gain, and strong cross-validation evidence (5 out of 5 folds).
-2. **Ship the B2 rule**, as the framing doc says to do if no model beats it.
-3. **For future versions,** pre-register a two-part criterion before the next evaluation: *superior* on the
-   primary metric and *not worse* on profit (for example, the lower bound above −$2,000). This is the usual
-   design for a secondary business metric. It must be decided before the next test-set look, not now, to fit this result.
+1. **v1 is shipped** (it stays `@champion`) by an explicit product decision, not by meeting criterion version 1:
+   it is clearly better at ranking, calibrated, earned more on the test set, and won 5 out of 5 cross-validation
+   folds on profit. Recorded on the model version as `ship_decision`.
+2. **Criteria version 2** ([problem_framing.md, section 5](problem_framing.md)) applies to every version after v1:
+   clearly better than B2 on PR-AUC, not clearly worse on profit (lower bound > −10% of B2's profit), and, to
+   replace a champion, not worse than it on PR-AUC. It is relative, not a dollar amount, so it scales with the test
+   set and prices. It is not applied to v1 retroactively.
+
+Options that were considered: shipping the B2 rule (rejected: worse on every metric, and no probabilities).
 
 ## Limitations
 

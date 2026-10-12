@@ -34,7 +34,10 @@ def evaluated_setup(tracked: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 def test_evaluation_reports_logs_and_tags_the_model_version(evaluated_setup: None) -> None:
     report = ev.run()
 
-    assert set(report["test"]["success_criteria"]) == {"beats_b2_on_pr_auc", "beats_b2_on_profit_at_k"}
+    assert set(report["test"]["success_criteria"]) == {
+        "beats_b2_on_pr_auc",
+        "not_worse_than_b2_on_profit_at_k",
+    }
     assert 0 <= report["decisions_on_training_oof"]["policy"]["threshold"] <= 1
     assert report["explanations"]["global_importance"]
 

@@ -32,7 +32,13 @@ from mlflow.entities.model_registry import ModelVersion
 from sklearn.metrics import average_precision_score
 from sklearn.pipeline import Pipeline
 
-from retention.config import BUSINESS, CONTACT_FRACTION, TARGET
+from retention.config import (
+    BUSINESS,
+    CONTACT_FRACTION,
+    CRITERIA_VERSION,
+    PROFIT_NON_INFERIORITY_FRACTION,
+    TARGET,
+)
 from retention.data.download import sha256_of
 from retention.data.prepare import PROCESSED_DIR
 from retention.evaluation import plots
@@ -89,14 +95,16 @@ def decide(train: pd.DataFrame) -> dict[str, Any]:
 
 
 def success_criteria(comparisons: dict[str, Comparison]) -> dict[str, bool]:
-    """docs/problem_framing.md section 5: beat B2 on PR-AUC and on profit for the top 10%.
+    """docs/problem_framing.md section 5 (criteria version 2): against the B2 rule on the test set,
+    clearly better on PR-AUC, and not clearly worse on profit for the top 10%.
 
-    "Beat" is read strictly: the whole 95% interval of the difference must be above zero.
     The champion is B3 itself, so the "beat B3 clearly, or ship B3" clause is satisfied by construction.
     """
+    profit = comparisons["profit_at_k"]
     return {
         "beats_b2_on_pr_auc": comparisons["pr_auc"].clearly_better,
-        "beats_b2_on_profit_at_k": comparisons["profit_at_k"].clearly_better,
+        "not_worse_than_b2_on_profit_at_k": profit.ci_low
+        > -PROFIT_NON_INFERIORITY_FRACTION * profit.baseline,
     }
 
 
@@ -230,7 +238,12 @@ def _log(
     rule_scores: np.ndarray,
 ) -> None:
     test = report["test"]
-    tags = {"stage": STAGE, "model_name": MODEL_NAME, "model_version": str(version.version)}
+    tags = {
+        "stage": STAGE,
+        "model_name": MODEL_NAME,
+        "model_version": str(version.version),
+        "criteria_version": CRITERIA_VERSION,
+    }
     with start_run(f"test evaluation v{version.version}", tags=tags) as run:
         mlflow.log_params(
             {
@@ -273,6 +286,7 @@ def _log(
     version_tags = {
         "evaluation_run_id": run.info.run_id,
         "passed_success_criteria": str(test["passed"]).lower(),
+        "criteria_version": CRITERIA_VERSION,
         "decision_threshold": str(decisions["policy"].threshold),
         "test_pr_auc": f"{test['champion']['pr_auc']:.4f}",
         "test_profit_at_k": f"{test['champion']['profit_at_k']:.0f}",

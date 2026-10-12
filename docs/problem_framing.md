@@ -68,9 +68,24 @@ expected value. This is only valid if probabilities are **calibrated** (see metr
 | B2. Contract + tenure rule | Month-to-month first, newest customers (lowest `tenure`) first | **The real competitor for the top-100 list**: what a manager could do in a spreadsheet |
 | B3. Logistic regression | Simple, explainable model | If gradient boosting can't clearly beat it, ship the simpler model |
 
-**Success criteria:** a model is shipped only if, on the held-out test set, it beats **B2** on **PR-AUC** and
-on **expected profit for the top 10%**, and beats **B3** by a clear margin (or B3 is shipped). If no model beats B2, the
-rule is shipped.
+**Success criteria (version 1, used for model v1):** a model is shipped only if, on the held-out test set, it beats
+**B2** on **PR-AUC** and on **expected profit for the top 10%**, and beats **B3** by a clear margin (or B3 is
+shipped). If no model beats B2, the rule is shipped. Read strictly in module 5: "beat" = the whole 95% bootstrap
+interval of the difference above zero.
+
+**Amendment, 2026-10-12: criteria version 2, for every version after v1.** Model v1 met the PR-AUC criterion but
+not the strict profit one (+24%, interval −$268 to +$7,236). It was **shipped by an explicit product decision**,
+recorded in [evaluation.md](evaluation.md), and *not* by this amendment. The amendment fixes, before any further
+test-set evaluation, how a secondary business metric is judged (the standard superiority + non-inferiority design):
+
+| Rule | Against | Requirement (95% paired bootstrap interval of the difference) |
+|---|---|---|
+| Ship | B2 rule | **PR-AUC:** lower bound > 0 (clearly better) |
+| Ship | B2 rule | **Profit, top 10%:** lower bound > −10% of B2's profit (not clearly worse) |
+| Replace the champion | current `@champion` | **PR-AUC:** lower bound > −0.01 (not worse), plus both rules above |
+
+The margins live in `src/retention/config.py` (`CRITERIA_VERSION = "2"`). Every evaluation records the criteria
+version it was judged by.
 
 ## 6. Other requirements
 

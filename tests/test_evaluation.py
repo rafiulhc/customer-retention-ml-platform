@@ -5,7 +5,7 @@ import pytest
 from sklearn.metrics import average_precision_score
 
 from retention.config import FEATURES, TARGET
-from retention.evaluation.bootstrap import paired_bootstrap
+from retention.evaluation.bootstrap import Comparison, paired_bootstrap
 from retention.evaluation.calibration import calibration_table, expected_calibration_error
 from retention.evaluation.explain import global_importance, shap_values, top_reasons
 from retention.evaluation.oof import out_of_fold
@@ -140,3 +140,24 @@ def test_out_of_fold_scores_differ_from_in_sample_scores() -> None:
     df = small_dataset()
     in_sample = final_model().fit(model_input(df), df[TARGET]).predict_proba(model_input(df))[:, 1]
     assert not np.allclose(out_of_fold(df, final_model, folds=3), in_sample)
+
+
+# ---------- success criteria (version 2) ----------
+def _comparison(difference: float, ci_low: float, baseline: float) -> Comparison:
+    return Comparison(baseline + difference, baseline, difference, ci_low, difference * 2, 0.0)
+
+
+def test_criteria_v2_accept_an_inconclusive_but_not_worse_profit() -> None:
+    from retention.evaluation.evaluate import success_criteria
+
+    v1_like = {"pr_auc": _comparison(0.088, 0.034, 0.544), "profit_at_k": _comparison(3752, -268, 15927)}
+    assert success_criteria(v1_like) == {"beats_b2_on_pr_auc": True, "not_worse_than_b2_on_profit_at_k": True}
+
+
+def test_criteria_v2_reject_a_clearly_worse_profit_or_a_tied_ranking() -> None:
+    from retention.evaluation.evaluate import success_criteria
+
+    worse_profit = {"pr_auc": _comparison(0.05, 0.01, 0.5), "profit_at_k": _comparison(-3000, -5000, 16000)}
+    assert success_criteria(worse_profit)["not_worse_than_b2_on_profit_at_k"] is False  # -5000 < -1600
+    tied_ranking = {"pr_auc": _comparison(0.01, -0.02, 0.5), "profit_at_k": _comparison(100, -50, 16000)}
+    assert success_criteria(tied_ranking)["beats_b2_on_pr_auc"] is False

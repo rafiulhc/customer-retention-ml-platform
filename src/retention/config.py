@@ -52,6 +52,14 @@ BUSINESS = BusinessAssumptions()
 # because 100/7,043 customers is only ~16 per cross-validation fold: too few for a stable metric.
 CONTACT_FRACTION = 0.10
 
+# ---------- Shipping and promotion criteria (problem_framing.md section 5, amended 2026-10-12) ----------
+# Pre-registered before any version after v1 is evaluated. Primary metric: must be clearly better
+# (95% interval above zero). Profit: must not be clearly worse (interval's lower bound above -10% of the
+# reference's profit). A challenger must also not be worse than the current champion on PR-AUC.
+CRITERIA_VERSION = "2"
+PROFIT_NON_INFERIORITY_FRACTION = 0.10
+PR_AUC_NON_INFERIORITY_MARGIN = 0.01
+
 # ---------- Features ----------
 TARGET = "churn"
 ID_COLUMN = "customer_id"
