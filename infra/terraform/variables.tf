@@ -20,6 +20,12 @@ variable "github_repository" {
   default     = "rafiulhc/customer-retention-ml-platform"
 }
 
+variable "github_ids" {
+  description = "Permanent IDs of the owner and repository (gh api repos/OWNER/REPO --jq '.owner.id, .id')"
+  type        = object({ owner = number, repository = number })
+  default     = { owner = 68476971, repository = 1414432481 }
+}
+
 variable "operator_cidr" {
   description = "Your public IP as a /32: the only address allowed to open the MLflow UI"
   type        = string

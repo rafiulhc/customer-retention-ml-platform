@@ -44,7 +44,11 @@ jobs:
       - name: Known vulnerabilities in dependencies
         run: |
           uv export --frozen --all-groups --no-emit-project > requirements-audit.txt  # with hashes
-          uvx pip-audit==2.10.1 --strict --disable-pip -r requirements-audit.txt
+          # Accepted, reviewed 2026-10-12 (re-check when a fix is released):
+          #   PYSEC-2026-2447 diskcache 5.6.3 (unsafe pickle loading), no fixed version yet. Dev-only (via
+          #   DVC, not in any image); exploiting it needs write access to the local DVC cache already.
+          uvx pip-audit==2.10.1 --strict --disable-pip -r requirements-audit.txt \
+            --ignore-vuln PYSEC-2026-2447
 
   model-check:
     name: Model check (cross-validation, never the test set)

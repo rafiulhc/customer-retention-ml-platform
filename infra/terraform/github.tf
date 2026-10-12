@@ -14,6 +14,8 @@ data "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
+  github_owner    = split("/", var.github_repository)[0]
+  github_repo     = split("/", var.github_repository)[1]
   github_oidc_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
@@ -29,10 +31,13 @@ data "aws_iam_policy_document" "github_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
+    # GitHub's subject names the owner and repository with their permanent numeric IDs, e.g.
+    # repo:owner@123/name@456:ref:refs/heads/main. If the repository were deleted and its name taken by
+    # someone else, the IDs wouldn't match: the role can't be taken over by re-creating the name.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/main"]
+      values   = ["repo:${local.github_owner}@${var.github_ids.owner}/${local.github_repo}@${var.github_ids.repository}:ref:refs/heads/main"]
     }
   }
 }
