@@ -71,6 +71,18 @@ def candidates() -> dict[str, Callable[[], Any]]:
     }
 
 
+FINAL_MODEL = "B3 logistic regression"  # chosen in docs/model_selection.md
+
+
+def final_model() -> Any:
+    """The model chosen in docs/model_selection.md: a fresh, unfitted pipeline.
+
+    Every later stage (tracking, evaluation, serving) builds the model through this function, so the
+    choice lives in one place.
+    """
+    return candidates()[FINAL_MODEL]()
+
+
 def cross_validate(
     df: pd.DataFrame, models: dict[str, Callable[[], Any]], folds: int = CV_FOLDS, seed: int = SEED
 ) -> pd.DataFrame:

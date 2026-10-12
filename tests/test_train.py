@@ -56,3 +56,17 @@ def test_all_candidates_train_and_predict() -> None:
     for name, make in candidates().items():
         proba = make().fit(df, df[TARGET]).predict_proba(df)
         assert proba.shape == (len(df), 2), name
+
+
+def test_final_model_is_the_documented_choice() -> None:
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    from retention.models.train import FINAL_MODEL, final_model
+
+    model = final_model()
+    assert FINAL_MODEL in candidates()
+    assert isinstance(model, Pipeline)
+    assert isinstance(model.named_steps["model"], LogisticRegression)
+    df = small_dataset()
+    assert final_model().fit(df, df[TARGET]).predict_proba(df).shape == (len(df), 2)
