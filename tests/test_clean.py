@@ -7,39 +7,7 @@ from pandera.errors import SchemaErrors
 from retention.data.clean import ID_COLUMN, TARGET, clean
 from retention.data.download import RAW_PATH
 from retention.data.schema import CATEGORY_COLUMNS
-
-
-def raw_row(**overrides: object) -> dict[str, object]:
-    """One valid raw customer. Override any field to build a test case."""
-    row: dict[str, object] = {
-        "customerID": "0001-ABCDE",
-        "gender": "Female",
-        "SeniorCitizen": 0,
-        "Partner": "Yes",
-        "Dependents": "No",
-        "tenure": 12,
-        "PhoneService": "Yes",
-        "MultipleLines": "No",
-        "InternetService": "DSL",
-        "OnlineSecurity": "Yes",
-        "OnlineBackup": "No",
-        "DeviceProtection": "No",
-        "TechSupport": "No",
-        "StreamingTV": "No",
-        "StreamingMovies": "No",
-        "Contract": "One year",
-        "PaperlessBilling": "Yes",
-        "PaymentMethod": "Mailed check",
-        "MonthlyCharges": 50.0,
-        "TotalCharges": "600.0",
-        "Churn": "No",
-    }
-    row.update(overrides)
-    return row
-
-
-def frame(*rows: dict[str, object]) -> pd.DataFrame:
-    return pd.DataFrame(list(rows))
+from tests.factories import frame, raw_row
 
 
 def test_blank_total_charges_for_new_customer_becomes_zero() -> None:
@@ -55,6 +23,13 @@ def test_blank_total_charges_for_existing_customer_is_rejected() -> None:
 def test_total_charges_becomes_a_number() -> None:
     df = clean(frame(raw_row(TotalCharges="1234.5")))
     assert df["total_charges"].iloc[0] == 1234.5
+    assert pd.api.types.is_float_dtype(df["total_charges"])
+
+
+def test_whole_number_total_charges_stay_float() -> None:
+    # regression test: to_numeric(["100"]) returns int64, which the clean schema used to reject
+    df = clean(frame(raw_row(TotalCharges="100")))
+    assert df["total_charges"].iloc[0] == 100.0
     assert pd.api.types.is_float_dtype(df["total_charges"])
 
 

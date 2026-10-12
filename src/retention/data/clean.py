@@ -42,7 +42,9 @@ def clean(raw: pd.DataFrame) -> pd.DataFrame:
     df = RAW_SCHEMA.validate(raw.copy(), lazy=True).rename(columns=RENAMES)
 
     # Blank total charges belong to customers with tenure 0 (never billed yet): they are 0, not missing.
-    df["total_charges"] = pd.to_numeric(df["total_charges"], errors="coerce").fillna(0.0)
+    # astype(float): to_numeric returns integers when every value is whole (e.g. "100"), which the
+    # clean schema rejects. Explicit, so a single API request like TotalCharges="100" works too.
+    df["total_charges"] = pd.to_numeric(df["total_charges"], errors="coerce").fillna(0.0).astype(float)
 
     df[TARGET] = (df[TARGET] == "Yes").astype(int)
 
