@@ -29,3 +29,10 @@ mlruns/
 # Generated reports (cross-validation results etc.); MLflow tracks runs from module 4
 reports/
 requirements-audit.txt
+
+# Terraform: state holds resource details (and can hold secrets); plans and providers are local
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/terraform.tfvars
+infra/terraform/*.tfplan

@@ -12,6 +12,7 @@ Run once:  uv run python -m retention.pipeline.score
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -84,6 +85,24 @@ def write_call_list(call_list: pd.DataFrame, scored_at: str, output_dir: Path) -
     return path
 
 
+def split_s3_uri(uri: str) -> tuple[str, str]:
+    """'s3://bucket/some/prefix/' -> ('bucket', 'some/prefix/')."""
+    if not uri.startswith("s3://"):
+        raise ValueError(f"not an s3:// URI: {uri}")
+    bucket, _, prefix = uri.removeprefix("s3://").partition("/")
+    return bucket, prefix if not prefix or prefix.endswith("/") else prefix + "/"
+
+
+@task(retries=2, retry_delay_seconds=10)
+def upload_call_list(path: Path, uri: str) -> str:
+    """On AWS the container's disk is temporary: the list goes to S3 (CALL_LIST_S3_URI)."""
+    import boto3  # pipeline dependency, only needed on AWS
+
+    bucket, prefix = split_s3_uri(uri)
+    boto3.client("s3").upload_file(str(path), bucket, prefix + path.name)
+    return f"s3://{bucket}/{prefix}{path.name}"
+
+
 @flow(name="weekly-call-list", log_prints=True)
 def weekly_call_list(calls: int = CALLS_PER_WEEK) -> dict[str, Any]:
     logger = get_run_logger()
@@ -93,6 +112,8 @@ def weekly_call_list(calls: int = CALLS_PER_WEEK) -> dict[str, Any]:
     scored, version, threshold = score_customers(customers)
     call_list = build_call_list(scored, calls, version, scored_at)
     path = write_call_list(call_list, scored_at, OUTPUT_DIR)
+    destination = os.environ.get("CALL_LIST_S3_URI")
+    stored_at = upload_call_list(path, destination) if destination else str(path)
 
     worth_calling = int(scored["worth_calling"].sum())
     summary = {
@@ -103,7 +124,7 @@ def weekly_call_list(calls: int = CALLS_PER_WEEK) -> dict[str, Any]:
         "on_the_list": len(call_list),
         "expected_saves": round(float((call_list["p_leaves"] * BUSINESS.save_rate).sum()), 1),
         "expected_value": round(float(call_list["expected_value"].sum()), 2),
-        "file": str(path.relative_to(PROJECT_ROOT)) if path.is_relative_to(PROJECT_ROOT) else str(path),
+        "file": stored_at,
     }
     if worth_calling > calls:
         logger.info(

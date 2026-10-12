@@ -1,0 +1,43 @@
+schema: '2.0'
+stages:
+  download:
+    cmd: uv run python -m retention.data.download
+    deps:
+    - path: src/retention/data/download.py
+      hash: md5
+      md5: b63a0b3bf1097581bbed6e581e686e97
+      size: 2967
+    outs:
+    - path: data/raw/Telco-Customer-Churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+  prepare:
+    cmd: uv run python -m retention.data.prepare
+    deps:
+    - path: data/raw/Telco-Customer-Churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: src/retention/config.py
+      hash: md5
+      md5: 7fad5bcddc7724d72c014e897c686f9e
+      size: 3018
+    - path: src/retention/data/
+      hash: md5
+      md5: 4da87d229577943ba1235afd1226024b.dir
+      size: 13588
+      nfiles: 6
+    outs:
+    - path: data/processed/manifest.json
+      hash: md5
+      md5: 5051ef96f7e912480c2efcd9741b689e
+      size: 886
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 3681b90f2ac23456d45543d9ba856884
+      size: 53707
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: 2588b8f81dcdde51e03ae55f5001a9fe
+      size: 162066

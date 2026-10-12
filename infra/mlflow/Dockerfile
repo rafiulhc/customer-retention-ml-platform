@@ -4,3 +4,6 @@
 FROM ghcr.io/mlflow/mlflow:v3.16.1
 
 RUN pip install --no-cache-dir "psycopg2-binary==2.9.13" "boto3==1.43.104"
+# On AWS the server starts from separate settings (see start.py); docker compose overrides the command.
+COPY start.py /opt/mlflow/start.py
+CMD ["python", "/opt/mlflow/start.py"]

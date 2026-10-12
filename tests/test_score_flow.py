@@ -57,3 +57,27 @@ def test_expected_value_uses_the_business_assumptions() -> None:
     value = score.expected_value(p)
     assert value.iloc[0] == pytest.approx(0.0)  # break-even: a call is worth exactly nothing
     assert value.iloc[1] == pytest.approx(BUSINESS.true_positive_value)
+
+
+def test_s3_uris_are_split_into_bucket_and_prefix() -> None:
+    assert score.split_s3_uri("s3://data-bucket/call_lists/") == ("data-bucket", "call_lists/")
+    assert score.split_s3_uri("s3://data-bucket/call_lists") == ("data-bucket", "call_lists/")
+    assert score.split_s3_uri("s3://data-bucket") == ("data-bucket", "")
+    with pytest.raises(ValueError):
+        score.split_s3_uri("/tmp/call_lists")
+
+
+def test_call_list_goes_to_s3_when_configured(scoring: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    uploads: list[tuple[str, str, str]] = []
+
+    class FakeS3:
+        def upload_file(self, filename: str, bucket: str, key: str) -> None:
+            uploads.append((filename, bucket, key))
+
+    import boto3
+
+    monkeypatch.setattr(boto3, "client", lambda service: FakeS3())
+    monkeypatch.setenv("CALL_LIST_S3_URI", "s3://data-bucket/call_lists/")
+    summary = score.weekly_call_list(calls=10)
+    assert summary["file"].startswith("s3://data-bucket/call_lists/call_list_")
+    assert uploads[0][1:] == ("data-bucket", summary["file"].removeprefix("s3://data-bucket/"))

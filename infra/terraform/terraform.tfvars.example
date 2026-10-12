@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+operator_cidr = "203.0.113.7/32" # your public IP: curl -s https://checkip.amazonaws.com
+alarm_email   = ""               # e.g. "you@example.com" for alarms and the budget alert
+
+# Raised step by step during the first deploy (see docs/deployment.md):
+mlflow_desired_count = 0
+api_desired_count    = 0
+schedules_enabled    = false
+image_tags           = { api = "v1", pipeline = "v1", mlflow = "v1" }

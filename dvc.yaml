@@ -1,0 +1,21 @@
+# Data versioning with DVC: `dvc repro` rebuilds the data when its inputs change, and dvc.lock (in git)
+# records the exact content hash of every file. `git checkout <commit> && dvc checkout` restores the data
+# of any commit; the files themselves live in the S3 remote (`dvc push` / `dvc pull`), not in git.
+stages:
+  download:
+    cmd: uv run python -m retention.data.download
+    deps:
+      - src/retention/data/download.py
+    outs:
+      - data/raw/Telco-Customer-Churn.csv
+
+  prepare:
+    cmd: uv run python -m retention.data.prepare
+    deps:
+      - data/raw/Telco-Customer-Churn.csv
+      - src/retention/data/
+      - src/retention/config.py
+    outs:
+      - data/processed/train.parquet
+      - data/processed/test.parquet
+      - data/processed/manifest.json
