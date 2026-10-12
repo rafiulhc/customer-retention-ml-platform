@@ -65,7 +65,7 @@ resource "aws_security_group" "alb" {
     prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
   }
   ingress {
-    description = "MLflow UI from the operator's IP"
+    description = "MLflow UI from the operator IP"
     from_port   = 5001
     to_port     = 5001
     protocol    = "tcp"
