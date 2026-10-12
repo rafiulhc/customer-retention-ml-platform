@@ -54,6 +54,8 @@ testpaths = ["tests"]
 filterwarnings = [
     # Raised inside MLflow 3.16's own SQLAlchemy models, not our code.
     "ignore:The ``noload`` loader strategy is deprecated:DeprecationWarning",
+    # Raised inside shap 0.52's colour maps on import, not our code.
+    "ignore::PendingDeprecationWarning:shap.plots.colors._colors",
 ]
 
 [tool.uv]
