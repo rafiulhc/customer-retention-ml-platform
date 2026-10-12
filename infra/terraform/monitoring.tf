@@ -85,6 +85,7 @@ resource "aws_sns_topic_policy" "alerts" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid       = "PipelineFailuresFromEventBridge"
         Effect    = "Allow"
         Principal = { Service = "events.amazonaws.com" }
         Action    = "sns:Publish"
@@ -92,6 +93,7 @@ resource "aws_sns_topic_policy" "alerts" {
         Condition = { ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.pipeline_failed.arn } }
       },
       {
+        Sid       = "AlarmsFromCloudWatch"
         Effect    = "Allow"
         Principal = { Service = "cloudwatch.amazonaws.com" }
         Action    = "sns:Publish"

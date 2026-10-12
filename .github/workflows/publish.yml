@@ -46,5 +46,8 @@ jobs:
           push: true
           tags: ${{ steps.ecr.outputs.registry }}/retention-${{ matrix.image.name }}:${{ inputs.tag }}
           provenance: false
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_DIRTY=false
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}

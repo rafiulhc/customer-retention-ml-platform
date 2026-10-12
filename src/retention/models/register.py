@@ -40,7 +40,8 @@ DESCRIPTION = (
 )
 # What the serving environment must install to load the model. Explicit pins, because MLflow's
 # inference records whatever the training process happened to import (pytest, under tests).
-RUNTIME_PACKAGES = ("mlflow", "scikit-learn", "numpy", "pandas", "scipy", "skops")
+# mlflow-skinny, not mlflow: it is what serving installs (the full server package is a dev tool here).
+RUNTIME_PACKAGES = ("mlflow-skinny", "scikit-learn", "numpy", "pandas", "scipy", "skops")
 
 
 @dataclass(frozen=True)

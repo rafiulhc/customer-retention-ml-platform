@@ -21,7 +21,12 @@ FROM python:3.12.15-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df27
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 RUN useradd --uid 10001 --create-home app
 COPY --from=build --chown=app:app /app /app
-ENV PATH=/app/.venv/bin:$PATH PYTHONUNBUFFERED=1 PREFECT_HOME=/home/app/.prefect
+# Lineage: the image has no git, so the build records the commit (`--build-arg GIT_COMMIT=$(git rev-parse --short HEAD)`)
+ARG GIT_COMMIT=unknown
+ARG GIT_DIRTY=unknown
+ENV PATH=/app/.venv/bin:$PATH PYTHONUNBUFFERED=1 PREFECT_HOME=/home/app/.prefect \
+    RETENTION_GIT_COMMIT=$GIT_COMMIT RETENTION_GIT_DIRTY=$GIT_DIRTY \
+    PREFECT_SERVER_ANALYTICS_ENABLED=false GIT_PYTHON_REFRESH=quiet
 USER app
 WORKDIR /app
 CMD ["python", "-m", "retention.pipeline.flows"]

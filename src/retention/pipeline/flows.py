@@ -65,19 +65,26 @@ def needs_training(manifest: dict[str, Any], force: bool) -> tuple[bool, str]:
     return False, f"the champion (v{champion}) was trained on exactly this data"
 
 
+# Below this PR-AUC gap, "another model ranks first" is a tie (module 3: logistic regression and the
+# boosted models are within ~0.001; platforms can reorder them). Same tolerance as the CI model check.
+RANKING_NOISE = 0.005
+
+
 @task
 def compare_models() -> dict[str, Any]:
     """Re-run the model comparison so a change in the ranking is visible (logged to MLflow)."""
     run_id, _, summary = model_selection(pd.read_parquet(PROCESSED_DIR / "train.parquet"))
     ranking = [str(name) for name in summary.index]
-    if ranking[0] != FINAL_MODEL:
+    pr_auc = summary[("pr_auc", "mean")]
+    gap = float(pr_auc.iloc[0] - pr_auc[FINAL_MODEL])
+    if gap > RANKING_NOISE:  # a real lead, not a tie reshuffled by tiny numerical differences
         get_run_logger().warning(
-            "%s now ranks first (the chosen family, %s, ranks %d). Revisit docs/model_selection.md.",
+            "%s leads the chosen family (%s) by %.4f PR-AUC. Revisit docs/model_selection.md.",
             ranking[0],
             FINAL_MODEL,
-            ranking.index(FINAL_MODEL) + 1,
+            gap,
         )
-    return {"run_id": run_id, "ranking": ranking}
+    return {"run_id": run_id, "ranking": ranking, "gap_to_leader": round(gap, 4)}
 
 
 @task

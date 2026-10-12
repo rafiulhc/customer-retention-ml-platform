@@ -90,3 +90,14 @@ def test_content_fingerprint_changes_when_the_data_changes() -> None:
     df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
     assert lin.content_sha256(df) != lin.content_sha256(df.assign(a=[1, 2, 4]))
     assert lin.content_sha256(df) != lin.content_sha256(df.astype({"a": float}))  # types are part of the data
+
+
+def test_inside_an_image_the_commit_comes_from_the_build(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(lin, "_git", lambda *args: None)  # no git in the container
+    monkeypatch.setenv(lin.COMMIT_ENV, "abc1234")
+    monkeypatch.setenv(lin.DIRTY_ENV, "false")
+    assert lin.git_commit() == "abc1234"
+    assert lin.git_dirty() is False
+    monkeypatch.delenv(lin.COMMIT_ENV)
+    monkeypatch.delenv(lin.DIRTY_ENV)
+    assert lin.git_commit() is None and lin.git_dirty() is None

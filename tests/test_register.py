@@ -46,3 +46,17 @@ def test_requirements_are_pinned_and_exclude_test_tools() -> None:
     assert all("==" in r for r in reqs)
     assert any(r.startswith("scikit-learn==") for r in reqs)
     assert not any(r.startswith("pytest") for r in reqs)
+
+
+def test_every_runtime_requirement_is_a_core_dependency() -> None:
+    """Regression: 'mlflow' was pinned, but only the dev environment has it; the pipeline image (core +
+    training + pipeline) has mlflow-skinny, so registering a model crashed in the cloud."""
+    import tomllib
+
+    from retention.data.download import PROJECT_ROOT
+    from retention.models.register import RUNTIME_PACKAGES
+
+    core = tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
+    core_names = {d.split("==")[0].split("[")[0].split(";")[0].strip().lower() for d in core}
+    transitive_of_core = {"scipy"}  # installed with scikit-learn
+    assert set(RUNTIME_PACKAGES) <= core_names | transitive_of_core

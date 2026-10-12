@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from collections.abc import Mapping
 from pathlib import Path
@@ -27,15 +28,23 @@ def _git(*args: str) -> str | None:
     return result.stdout.strip()
 
 
+# Container images have no git: the build records the commit in these variables instead
+# (`--build-arg GIT_COMMIT=...`, see infra/pipeline/Dockerfile).
+COMMIT_ENV, DIRTY_ENV = "RETENTION_GIT_COMMIT", "RETENTION_GIT_DIRTY"
+
+
 def git_commit() -> str | None:
-    """The current commit (short hash), or None outside a git checkout."""
-    return _git("rev-parse", "--short", "HEAD")
+    """The current commit (short hash): from git, or from the image build; None if neither knows."""
+    return _git("rev-parse", "--short", "HEAD") or os.environ.get(COMMIT_ENV) or None
 
 
 def git_dirty() -> bool | None:
     """True if tracked files have uncommitted changes: the commit alone can't reproduce the run."""
     status = _git("status", "--porcelain", "--untracked-files=no")
-    return None if status is None else bool(status)
+    if status is not None:
+        return bool(status)
+    recorded = os.environ.get(DIRTY_ENV)
+    return None if recorded is None else recorded == "true"
 
 
 def content_sha256(df: pd.DataFrame) -> str:
