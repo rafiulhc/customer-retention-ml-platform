@@ -63,3 +63,36 @@ RAW_SCHEMA = DataFrameSchema(
     strict=True,  # no unexpected columns
     name="raw_telco",
 )
+
+# Categorical feature columns after cleaning (snake_case). Their allowed values were checked by RAW_SCHEMA.
+CATEGORY_COLUMNS = [
+    "gender",
+    "senior_citizen",
+    "partner",
+    "dependents",
+    "phone_service",
+    "multiple_lines",
+    "internet_service",
+    "online_security",
+    "online_backup",
+    "device_protection",
+    "tech_support",
+    "streaming_tv",
+    "streaming_movies",
+    "contract",
+    "paperless_billing",
+    "payment_method",
+]
+
+CLEAN_SCHEMA = DataFrameSchema(
+    columns={
+        "customer_id": Column(str, unique=True),  # identifier: kept for tracking, never a feature
+        "tenure": Column(int, Check.ge(0)),
+        "monthly_charges": Column(float, Check.ge(0)),
+        "total_charges": Column(float, Check.ge(0)),  # a real number now, never missing
+        "churn": Column(int, Check.isin([0, 1])),
+        **{name: Column("category") for name in CATEGORY_COLUMNS},
+    },
+    strict=True,  # nullable=False is pandera's default, so no column may contain missing values
+    name="clean_telco",
+)
