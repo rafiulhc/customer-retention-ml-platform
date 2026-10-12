@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import logging
-import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,21 +18,11 @@ from retention.data.clean import TARGET, clean
 from retention.data.download import PROJECT_ROOT, RAW_PATH, download, sha256_of
 from retention.data.schema import CLEAN_SCHEMA
 from retention.data.split import SEED, TEST_SIZE, split
+from retention.lineage import git_commit
 
 logger = logging.getLogger(__name__)
 
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
-
-
-def _git_commit() -> str | None:
-    """The code version that produced the data, if this is a git checkout."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    return result.stdout.strip()
 
 
 def _summary(df: pd.DataFrame, path: Path) -> dict[str, Any]:
@@ -60,7 +49,7 @@ def prepare(raw_path: Path = RAW_PATH, out_dir: Path = PROCESSED_DIR, seed: int 
 
     manifest: dict[str, Any] = {
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "code_version": _git_commit(),
+        "code_version": git_commit(),
         "raw": {"file": raw_path.name, "sha256": sha256_of(raw_path), "rows": len(cleaned)},
         "split": {"test_size": TEST_SIZE, "seed": seed, "stratified_on": TARGET},
         "outputs": files,
