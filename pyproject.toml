@@ -10,12 +10,14 @@ requires-python = ">=3.12"
 dependencies = [
     "lightgbm==4.7.0",
     "mlflow==3.16.1",
+    "numpy==2.5.3",
     "optuna==4.9.0",
-    "pandas>=3.0.6",
+    "pandas==3.0.6",
     "pandera[pandas]==0.33.1",
     "pyarrow==25.0.1",
     "python-dotenv==1.2.3",
     "scikit-learn==1.9.1",
+    "shap==0.52.0",
     "xgboost==3.4.1",
 ]
 
@@ -28,12 +30,12 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "ipykernel>=7.4.0",
-    "mypy>=2.4.0",
-    "pandas-stubs>=3.0.5.260914",
-    "pre-commit>=4.6.2",
-    "pytest>=9.1.1",
-    "ruff>=0.17.0",
+    "ipykernel==7.3.0",
+    "mypy==2.3.1",
+    "pandas-stubs==3.0.5.260914",
+    "pre-commit==4.6.2",
+    "pytest==9.1.1",
+    "ruff==0.16.9",
 ]
 [tool.ruff]
 line-length = 110
@@ -53,3 +55,15 @@ filterwarnings = [
     # Raised inside MLflow 3.16's own SQLAlchemy models, not our code.
     "ignore:The ``noload`` loader strategy is deprecated:DeprecationWarning",
 ]
+
+[tool.uv]
+# Dependency cooldown: ignore anything published after this date (at least two weeks old when set),
+# so a freshly compromised or broken release can't slip in. Move it forward deliberately.
+exclude-newer = "2026-09-28T00:00:00Z"
+# Where this runs: Apple-silicon Macs (development) and Linux (CI, Docker, AWS).
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux'",
+]
+# Pins for transitive dependencies we don't import directly (versions at least two weeks old).
+constraint-dependencies = ["numba==0.67.0"]

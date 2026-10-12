@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.0          # same version as the ruff in uv.lock, so editor, pre-commit and CI agree
+    rev: v0.16.9          # same version as the ruff in uv.lock, so editor, pre-commit and CI agree
     hooks:
       - id: ruff-check
         args: [--fix]
