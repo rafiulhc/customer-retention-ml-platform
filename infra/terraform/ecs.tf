@@ -28,7 +28,15 @@ resource "aws_service_discovery_service" "mlflow" {
 
 locals {
   mlflow_uri = "http://mlflow.${aws_service_discovery_private_dns_namespace.internal.name}:5000"
-  image      = { for k, repo in aws_ecr_repository.this : k => "${repo.repository_url}:${var.image_tags[k]}" }
+
+  # MLflow clients stream artifacts through the server. Its presigned S3 links are rejected by S3 on
+  # AWS (SignatureDoesNotMatch with task-role credentials, MLflow 3.16), and our models are small.
+  mlflow_client_env = [
+    { name = "MLFLOW_TRACKING_URI", value = local.mlflow_uri },
+    { name = "MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD", value = "false" },
+    { name = "MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD", value = "false" },
+  ]
+  image = { for k, repo in aws_ecr_repository.this : k => "${repo.repository_url}:${var.image_tags[k]}" }
 
   logging = { for k, group in aws_cloudwatch_log_group.this : k => {
     logDriver = "awslogs"
@@ -123,7 +131,7 @@ resource "aws_ecs_task_definition" "api" {
     image            = local.image["api"]
     essential        = true
     portMappings     = [{ containerPort = 8000 }]
-    environment      = [{ name = "MLFLOW_TRACKING_URI", value = local.mlflow_uri }]
+    environment      = local.mlflow_client_env
     logConfiguration = local.logging["api"]
   }])
 }
@@ -193,10 +201,9 @@ resource "aws_ecs_task_definition" "pipeline" {
     image     = local.image["pipeline"]
     essential = true
     command   = each.value.command
-    environment = [
-      { name = "MLFLOW_TRACKING_URI", value = local.mlflow_uri },
+    environment = concat(local.mlflow_client_env, [
       { name = "CALL_LIST_S3_URI", value = "s3://${aws_s3_bucket.this["data"].bucket}/call_lists/" },
-    ]
+    ])
     logConfiguration = local.logging["pipeline"]
   }])
 }
