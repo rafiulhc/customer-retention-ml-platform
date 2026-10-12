@@ -1,0 +1,13 @@
+# Only pyproject.toml, uv.lock, README.md and src/ are needed to build the API image
+.venv
+.git
+data
+mlruns
+reports
+notebooks
+tests
+infra
+docs
+**/__pycache__
+.env
+*.db

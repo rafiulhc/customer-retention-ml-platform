@@ -18,7 +18,7 @@ uv run ruff check . && uv run mypy src && uv run pytest
 
 ```bash
 cp .env.example .env             # once: tracking URI and local settings (no secrets)
-docker compose up -d --wait      # Postgres + SeaweedFS (S3) + MLflow + Prefect servers
+docker compose up -d --wait      # Postgres + SeaweedFS (S3) + MLflow + Prefect + the API
 uv run python -m retention.tracking         # check the connection and the lineage tags
 uv run python -m retention.models.train     # model comparison -> MLflow
 uv run python -m retention.models.register  # train the chosen model, register a new version
@@ -40,3 +40,13 @@ uv run python -m retention.pipeline.serve   # keep running: monthly schedule, ru
 ```
 
 Prefect UI: <http://localhost:4200>. Details: [docs/pipeline.md](docs/pipeline.md).
+
+## Serving
+
+```bash
+open http://localhost:8000/docs              # the online API (started by docker compose)
+uv run python -m retention.pipeline.score    # this week's call list -> data/outputs/call_lists/
+```
+
+`POST /predict` returns churn risk, whether the customer is worth a call, the top reasons and the model version.
+Details: [docs/serving.md](docs/serving.md).

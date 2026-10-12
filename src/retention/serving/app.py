@@ -32,6 +32,7 @@ def _load() -> ScoringService:
 def create_app(load: Callable[[], ScoringService] = _load) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
         # Fail fast: a server without a valid model must not accept traffic (the platform restarts it).
         app.state.service = load()
         logger.info(

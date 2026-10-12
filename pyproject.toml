@@ -26,7 +26,7 @@ dependencies = [
 retention = "retention:main"
 
 [build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
+requires = ["uv_build>=0.12.19,<0.13.0"]  # >= the uv pinned in infra/api/Dockerfile
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -70,6 +70,8 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning:shap.plots.colors._colors",
     # Raised by Prefect 3.8's own database types under SQLAlchemy 2.1, not our code.
     "ignore:Type object <class 'prefect.server.utilities.database:DeprecationWarning",
+    # FastAPI 0.141's test client import, not our code.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
 ]
 
 [tool.uv]
