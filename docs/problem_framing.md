@@ -51,7 +51,9 @@ expected value. This is only valid if probabilities are **calibrated** (see metr
 
 - **Primary model metric: PR-AUC** (average precision), which ranks churners above stayers and is robust to
   the 26.5% imbalance.
-- **Capacity metrics:** **precision@100** and **recall@100** (the weekly call list).
+- **Capacity metrics:** **precision@k** and **recall@k** for the call list. The team contacts ~100 customers a
+  week, but 100/7,043 is only ~16 customers per cross-validation fold, too few for a stable estimate, so the
+  list is evaluated as the **top 10% of customers** (~7 weeks of contacts). Set in `src/retention/config.py`.
 - **Business metric:** **expected profit of contacting the top 100**, using the table above.
 - **Also reported:** ROC-AUC (for comparability) and **Brier score / calibration curve** (probabilities feed
   the profit calculation).
@@ -67,7 +69,7 @@ expected value. This is only valid if probabilities are **calibrated** (see metr
 | B3. Logistic regression | Simple, explainable model | If gradient boosting can't clearly beat it, ship the simpler model |
 
 **Success criteria:** a model is shipped only if, on the held-out test set, it beats **B2** on **PR-AUC** and
-on **expected profit@100**, and beats **B3** by a clear margin (or B3 is shipped). If no model beats B2, the
+on **expected profit for the top 10%**, and beats **B3** by a clear margin (or B3 is shipped). If no model beats B2, the
 rule is shipped.
 
 ## 6. Other requirements

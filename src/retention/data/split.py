@@ -9,10 +9,9 @@ from dataclasses import dataclass
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from retention.data.clean import ID_COLUMN, TARGET
+from retention.config import ID_COLUMN, SEED, TARGET, TEST_SIZE
 
-TEST_SIZE = 0.2
-SEED = 42
+__all__ = ["SEED", "TEST_SIZE", "LeakageError", "Split", "split"]
 
 
 class LeakageError(Exception):

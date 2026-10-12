@@ -7,10 +7,10 @@ pipeline, so no information leaks from the test set. The API reuses this functio
 
 import pandas as pd
 
+from retention.config import ID_COLUMN, TARGET
 from retention.data.schema import CATEGORY_COLUMNS, CLEAN_SCHEMA, RAW_SCHEMA
 
-ID_COLUMN = "customer_id"
-TARGET = "churn"
+__all__ = ["ID_COLUMN", "RENAMES", "TARGET", "clean"]
 
 RENAMES = {
     "customerID": "customer_id",
