@@ -23,10 +23,11 @@ uv run python -m retention.tracking         # check the connection and the linea
 uv run python -m retention.models.train     # model comparison -> MLflow
 uv run python -m retention.models.register  # train the chosen model, register a new version
 uv run python -m retention.models.champion  # load @champion like serving does and verify it
+uv run python -m retention.evaluation.evaluate  # one-time test-set evaluation -> MLflow + model version tags
 ```
 
 MLflow UI: <http://localhost:5001>. Run data lives in Docker volumes; `docker compose down` keeps it.
 
 The model registry holds `customer-retention-model`. Serving loads `models:/customer-retention-model@champion`.
 The first version becomes `@champion` automatically; later versions need `--promote`.
-Details: [docs/experiment_tracking.md](docs/experiment_tracking.md).
+Details: [docs/experiment_tracking.md](docs/experiment_tracking.md). Test-set results: [docs/evaluation.md](docs/evaluation.md).
