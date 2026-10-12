@@ -76,3 +76,30 @@ terraform init && terraform plan -out tfplan && terraform apply tfplan  # phase 
   production would put it behind SSO or a VPN.
 - One NAT-less VPC, single-AZ database, no WAF, AWS-managed encryption keys. Each is annotated in the code where a
   security scanner would flag it.
+
+## First deployment (2026-10-12): what happened
+
+| Step | Result |
+|---|---|
+| `terraform apply` | 71 resources (one retry: see below) |
+| Images | api 224 MB, mlflow 308 MB, pipeline 399 MB (compressed, arm64) |
+| First champion, trained **in the cloud** | fetch → validate → train → register → verify → evaluate → gate → promote in **18 s**. Same data fingerprint, test PR-AUC (0.6315), profit ($19,678) and threshold (0.28) as on the laptop; lineage `dbb572f`, clean; passed criteria version 2 |
+| API over HTTPS | same prediction as locally (0.7717 for the example customer). **In-container p95 78 ms** (0.25 vCPU; requirement 200 ms). The ~0.8 s round trip from the laptop is internet distance to us-west-1. Direct requests to the load balancer time out: only CloudFront is let in |
+| Weekly call list | 5,174 scored, 1,311 worth calling, 100 listed, ~22 expected saves. The file was written to S3 |
+| DVC | 4 files pushed. A deleted training file was pulled back byte-identical |
+| **Automatic rollback** | a broken release (MLflow unreachable) was deployed at 12:57:14. ECS reported "tasks failed to start" and rolled back to the previous revision by 13:03:54, **with no one involved**. **40/40** health checks passed during the attempt |
+| Drift | `terraform plan` afterwards: no changes |
+
+### Issues found only by running it for real
+
+1. **AWS rejects apostrophes in security group descriptions.** `terraform validate` can't know that; `plan` found it.
+2. **SNS topic policies need a `Sid` per statement.** Apply failed on that one resource. It was fixed and re-applied.
+3. **The pipeline image crashed when registering:** the model's requirements pinned `mlflow`, which only the dev
+   environment has (images have `mlflow-skinny`). There is now a test that every runtime requirement is a core dependency.
+4. **Lineage was lost:** images have no git, so commits came out as "unknown". The build now records the commit
+   (`GIT_COMMIT` build argument).
+5. **Model downloads failed on AWS too:** S3 rejected MLflow's presigned links (`SignatureDoesNotMatch` with
+   task-role credentials, reproduced from outside the VPC). Clients now stream through the MLflow server, as
+   locally. The model registered during that failed run was **never promoted**: verification stopped the run first.
+6. **A false alarm:** on Linux, XGBoost edged out logistic regression by a hair, a tie. The "revisit the model
+   choice" warning now needs a gap beyond 0.005 PR-AUC.
