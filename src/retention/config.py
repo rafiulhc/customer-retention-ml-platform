@@ -51,6 +51,7 @@ BUSINESS = BusinessAssumptions()
 # Capacity: ~100 contacts a week. Evaluated as the top 10% of customers (~7 weeks of contacts),
 # because 100/7,043 customers is only ~16 per cross-validation fold: too few for a stable metric.
 CONTACT_FRACTION = 0.10
+CALLS_PER_WEEK = 100  # the weekly call list's length (the batch job, module 7)
 
 # ---------- Shipping and promotion criteria (problem_framing.md section 5, amended 2026-10-12) ----------
 # Pre-registered before any version after v1 is evaluated. Primary metric: must be clearly better

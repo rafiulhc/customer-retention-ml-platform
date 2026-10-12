@@ -6,6 +6,7 @@ from pathlib import Path
 
 import mlflow
 import pytest
+from prefect.testing.utilities import prefect_test_harness
 
 from retention import lineage, tracking
 
@@ -45,3 +46,10 @@ def tracked(local_store: str, manifest: Path, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(lineage, "MANIFEST_PATH", manifest)
     tracking.configure(env_file=None)
     return local_store
+
+
+@pytest.fixture(scope="session")
+def prefect_backend() -> Iterator[None]:
+    """A throwaway Prefect database for the whole session, so tests never touch the real server."""
+    with prefect_test_harness():
+        yield

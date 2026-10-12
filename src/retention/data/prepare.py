@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from retention.data.clean import TARGET, clean
+from retention.data.clean import TARGET, clean, read_raw
 from retention.data.download import PROJECT_ROOT, RAW_PATH, download, sha256_of
 from retention.data.schema import CLEAN_SCHEMA
 from retention.data.split import SEED, TEST_SIZE, split
@@ -37,7 +37,7 @@ def _summary(df: pd.DataFrame, path: Path) -> dict[str, Any]:
 
 def prepare(raw_path: Path = RAW_PATH, out_dir: Path = PROCESSED_DIR, seed: int = SEED) -> dict[str, Any]:
     """Build train/test Parquet files from the raw CSV and return the manifest."""
-    cleaned = clean(pd.read_csv(raw_path))
+    cleaned = clean(read_raw(raw_path))
     parts = split(cleaned, test_size=TEST_SIZE, seed=seed)
 
     out_dir.mkdir(parents=True, exist_ok=True)

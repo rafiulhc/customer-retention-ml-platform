@@ -13,16 +13,9 @@ import pandas as pd
 import shap
 from sklearn.pipeline import Pipeline
 
-from retention.config import CATEGORICAL_FEATURES, NUMERIC_FEATURES
+from retention.models.reasons import original_feature_of_each_column, top_reasons
 
-
-def _original_feature_of_each_column(pipeline: Pipeline) -> list[str]:
-    """For every column the model sees, the input feature it came from (one-hot expanded)."""
-    encoder = pipeline.named_steps["preprocess"].named_transformers_["categorical"]
-    owners = list(NUMERIC_FEATURES)
-    for feature, categories in zip(CATEGORICAL_FEATURES, encoder.categories_, strict=True):
-        owners += [feature] * len(categories)
-    return owners
+__all__ = ["global_importance", "shap_values", "top_reasons"]
 
 
 def shap_values(pipeline: Pipeline, X: pd.DataFrame, background: pd.DataFrame) -> tuple[pd.DataFrame, float]:
@@ -37,19 +30,10 @@ def shap_values(pipeline: Pipeline, X: pd.DataFrame, background: pd.DataFrame) -
     explainer = shap.LinearExplainer(model, shap.maskers.Independent(reference, max_samples=len(reference)))
     values = np.asarray(explainer.shap_values(preprocess.transform(X)))
     per_column = pd.DataFrame(values, index=X.index)
-    per_feature = per_column.T.groupby(_original_feature_of_each_column(pipeline), sort=False).sum().T
+    per_feature = per_column.T.groupby(original_feature_of_each_column(pipeline), sort=False).sum().T
     return per_feature, float(np.ravel(explainer.expected_value)[0])
 
 
 def global_importance(values: pd.DataFrame) -> pd.Series:
     """Mean |contribution| per feature: how much each feature moves scores, on average."""
     return values.abs().mean().sort_values(ascending=False)
-
-
-def top_reasons(values: pd.DataFrame, X: pd.DataFrame, k: int = 3) -> list[list[str]]:
-    """For each customer, the k features pushing hardest towards leaving, e.g. 'contract = Month-to-month'."""
-    reasons = []
-    for idx, row in values.iterrows():
-        pushing_up = row[row > 0].sort_values(ascending=False).head(k)
-        reasons.append([f"{feature} = {X.at[idx, feature]}" for feature in pushing_up.index])
-    return reasons

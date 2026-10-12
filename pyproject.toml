@@ -7,19 +7,19 @@ authors = [
     { name = "RAFIUL86", email = "rafiulhasan86@gmail.com" }
 ]
 requires-python = ">=3.12"
+# Core = what serving needs (the API image installs only these). Training, the pipeline and dev tools
+# are dependency groups below; `uv sync` installs them all locally (see [tool.uv] default-groups).
 dependencies = [
-    "lightgbm==4.7.0",
-    "mlflow==3.16.1",
+    "fastapi==0.141.1",
+    "mlflow-skinny==3.16.1",  # the MLflow client (registry, model loading); the server runs in Docker
     "numpy==2.5.3",
-    "optuna==4.9.0",
     "pandas==3.0.6",
     "pandera[pandas]==0.33.1",
-    "prefect==3.8.7",
     "pyarrow==25.0.1",
     "python-dotenv==1.2.3",
     "scikit-learn==1.9.1",
-    "shap==0.52.0",
-    "xgboost==3.4.1",
+    "skops==0.16.0",  # how MLflow saves our scikit-learn models (safer than pickle)
+    "uvicorn==0.54.0",
 ]
 
 [project.scripts]
@@ -30,7 +30,18 @@ requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
+training = [
+    "lightgbm==4.7.0",
+    "matplotlib==3.11.2",
+    "optuna==4.9.0",
+    "shap==0.52.0",
+    "xgboost==3.4.1",
+]
+pipeline = [
+    "prefect==3.8.7",
+]
 dev = [
+    "mlflow==3.16.1",  # full MLflow: the tests use its local SQLite tracking store
     "ipykernel==7.3.0",
     "mypy==2.3.1",
     "pandas-stubs==3.0.5.260914",
@@ -62,6 +73,7 @@ filterwarnings = [
 ]
 
 [tool.uv]
+default-groups = ["training", "pipeline", "dev"]
 # Dependency cooldown: ignore anything published after this date (at least two weeks old when set),
 # so a freshly compromised or broken release can't slip in. Move it forward deliberately.
 exclude-newer = "2026-09-28T00:00:00Z"

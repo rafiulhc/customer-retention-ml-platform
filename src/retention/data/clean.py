@@ -5,12 +5,14 @@ data (no averages, scaling or encoding): that happens after the train/test split
 pipeline, so no information leaks from the test set. The API reuses this function (module 7).
 """
 
+from pathlib import Path
+
 import pandas as pd
 
 from retention.config import ID_COLUMN, TARGET
 from retention.data.schema import CATEGORY_COLUMNS, CLEAN_SCHEMA, RAW_SCHEMA
 
-__all__ = ["ID_COLUMN", "RENAMES", "TARGET", "clean"]
+__all__ = ["ID_COLUMN", "RAW_DTYPES", "RENAMES", "TARGET", "clean", "read_raw"]
 
 RENAMES = {
     "customerID": "customer_id",
@@ -35,6 +37,16 @@ RENAMES = {
     "TotalCharges": "total_charges",
     "Churn": "churn",
 }
+
+
+# Columns read as text whatever they contain. Left to guess, pandas reads TotalCharges as numbers when a
+# file happens to have no blank values, and the raw data contract (which expects text) rejects the file.
+RAW_DTYPES = {"customerID": "str", "TotalCharges": "str"}
+
+
+def read_raw(path: Path) -> pd.DataFrame:
+    """Read a raw customer CSV with explicit types for the columns pandas would otherwise guess."""
+    return pd.read_csv(path, dtype=RAW_DTYPES)
 
 
 def clean(raw: pd.DataFrame) -> pd.DataFrame:

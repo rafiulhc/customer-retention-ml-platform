@@ -1,10 +1,12 @@
 """Tests for clean(): small hand-made rows, so each test shows exactly one behaviour."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 from pandera.errors import SchemaErrors
 
-from retention.data.clean import ID_COLUMN, TARGET, clean
+from retention.data.clean import ID_COLUMN, TARGET, clean, read_raw
 from retention.data.download import RAW_PATH
 from retention.data.schema import CATEGORY_COLUMNS
 from tests.factories import frame, raw_row
@@ -69,7 +71,16 @@ def test_unknown_category_is_rejected() -> None:
     not RAW_PATH.exists(), reason="dataset not downloaded (uv run python -m retention.data.download)"
 )
 def test_real_dataset_cleans_end_to_end() -> None:
-    df = clean(pd.read_csv(RAW_PATH))
+    df = clean(read_raw(RAW_PATH))
     assert df.shape == (7043, 21)
     assert df[TARGET].mean() == pytest.approx(0.2654, abs=1e-4)
     assert df.isna().sum().sum() == 0
+
+
+def test_a_file_without_blank_total_charges_still_passes_the_contract(tmp_path: Path) -> None:
+    """Regression: with no blanks, pandas guessed TotalCharges was numeric and the contract rejected the
+    file. A month without brand-new customers would have broken training and scoring."""
+    path = tmp_path / "no_blanks.csv"
+    frame(raw_row(customerID="0001-ABCDE"), raw_row(customerID="0002-ABCDE")).to_csv(path, index=False)
+    assert pd.read_csv(path)["TotalCharges"].dtype == "float64"  # what pandas guesses
+    assert len(clean(read_raw(path))) == 2

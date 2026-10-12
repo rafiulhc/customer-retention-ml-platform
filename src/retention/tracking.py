@@ -56,12 +56,19 @@ def configure(
     Precedence: the `tracking_uri` argument, then the real environment, then `.env`, then the
     local default. Real environment variables win over `.env`, so CI and AWS can override it.
     """
+    uri = connect(tracking_uri, env_file)
+    mlflow.set_experiment(experiment)
+    return uri
+
+
+def connect(tracking_uri: str | None = None, env_file: Path | None = ENV_FILE) -> str:
+    """Point MLflow at the tracking server (same precedence as `configure`), without selecting or
+    creating an experiment: for consumers such as serving, which only read from the registry."""
     if env_file is not None:
         load_dotenv(env_file, override=False)
     uri = tracking_uri or os.environ.get("MLFLOW_TRACKING_URI", DEFAULT_TRACKING_URI)
     check_server(uri)
     mlflow.set_tracking_uri(uri)
-    mlflow.set_experiment(experiment)
     return uri
 
 

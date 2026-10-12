@@ -27,6 +27,7 @@ from retention.config import FEATURES, TARGET
 from retention.data.prepare import PROCESSED_DIR
 from retention.models.champion import CHAMPION, MODEL_NAME, current_champion, model_input
 from retention.models.experiment import model_params
+from retention.models.reasons import BACKGROUND_ARTIFACT, background_mean
 from retention.models.train import FINAL_MODEL, final_model
 from retention.tracking import configure, start_run
 
@@ -83,6 +84,8 @@ def register(
             pyfunc_predict_fn="predict_proba",  # the business ranks by probability, not by 0/1 labels
             registered_model_name=name,
         )
+        # What serving needs to explain predictions without the training data (models/reasons.py)
+        mlflow.log_dict({"feature_means": background_mean(model, X)}, BACKGROUND_ARTIFACT)
 
     client = MlflowClient()
     version = str(info.registered_model_version)

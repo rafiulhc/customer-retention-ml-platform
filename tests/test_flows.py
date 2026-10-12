@@ -1,15 +1,12 @@
 """The retraining flow end to end: a temporary Prefect backend, the offline MLflow store, small data."""
 
 import json
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import pytest
 from mlflow import MlflowClient
-from prefect.testing.utilities import prefect_test_harness
 
 from retention import lineage
 from retention.data.download import sha256_of
@@ -18,37 +15,10 @@ from retention.lineage import content_sha256
 from retention.models.champion import MODEL_NAME, current_champion
 from retention.pipeline import flows
 from tests.conftest import MANIFEST
-from tests.factories import clean_customers
+from tests.factories import learnable_dataset
 from tests.test_train import small_dataset
 
-
-def learnable_dataset(n: int, seed: int) -> pd.DataFrame:
-    """Churn depends on fiber internet as well as the contract: a model can beat the B2 rule (contract +
-    tenure), which only knows the contract. In `small_dataset` the contract is all there is."""
-    rng = np.random.default_rng(seed)
-    specs = []
-    for _ in range(n):
-        m2m, fiber, tenure = rng.random() < 0.5, rng.random() < 0.5, int(rng.integers(1, 72))
-        churn = rng.random() < 0.03 + 0.25 * m2m + 0.55 * fiber * m2m + 0.1 * fiber
-        specs.append(
-            {
-                "Contract": "Month-to-month" if m2m else "Two year",
-                "InternetService": "Fiber optic" if fiber else "DSL",
-                "tenure": tenure,
-                "TotalCharges": str(50.0 * tenure),
-                "Churn": "Yes" if churn else "No",
-            }
-        )
-    return clean_customers(*specs)
-
-
 WRITER = {"compression": "snappy"}  # how fake_prepare writes train.parquet; a test changes it
-
-
-@pytest.fixture(scope="module")
-def prefect_backend() -> Iterator[None]:
-    with prefect_test_harness():  # a throwaway Prefect database, so tests never touch the real server
-        yield
 
 
 def _pipeline(

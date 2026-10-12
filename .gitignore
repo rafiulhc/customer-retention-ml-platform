@@ -12,8 +12,10 @@ __pycache__/
 # Data and models: tracked with DVC / MLflow instead
 data/raw/*
 data/processed/*
+data/outputs/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/outputs/.gitkeep
 mlruns/
 *.joblib
 *.pkl
