@@ -33,7 +33,7 @@ build-backend = "uv_build"
 training = [
     "lightgbm==4.7.0",
     "matplotlib==3.11.2",
-    "optuna==4.9.0",
+    "optuna==5.0.0",
     "shap==0.52.0",
     # Same version on both platforms. On Linux the CPU-only build: the default one bundles 350 MB of
     # NVIDIA GPU libraries we never use (training runs on CPU).
