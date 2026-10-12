@@ -54,8 +54,14 @@ def pip_requirements() -> list[str]:
     return [f"{package}=={installed_version(package)}" for package in RUNTIME_PACKAGES]
 
 
-def register(train: pd.DataFrame, *, promote: bool = False, name: str = MODEL_NAME) -> Registered:
-    """Fit the final model on `train`, log it with signature + input example, register a new version."""
+def register(
+    train: pd.DataFrame, *, promote: bool = False, first_becomes_champion: bool = True, name: str = MODEL_NAME
+) -> Registered:
+    """Fit the final model on `train`, log it with signature + input example, register a new version.
+
+    `first_becomes_champion`: the manual workflow makes the very first version champion so something can
+    serve. The pipeline turns it off: there, only the promotion gate moves `@champion`.
+    """
     X, y = model_input(train), train[TARGET]
     model: Any = final_model().fit(X, y)
 
@@ -85,7 +91,7 @@ def register(train: pd.DataFrame, *, promote: bool = False, name: str = MODEL_NA
     for key in ("code.git_commit", "code.git_dirty", "data.train_sha256", "model_family"):
         client.set_model_version_tag(name, version, key, run_tags[key])
 
-    promoted = promote or current_champion(client, name) is None
+    promoted = promote or (first_becomes_champion and current_champion(client, name) is None)
     if promoted:
         client.set_registered_model_alias(name, CHAMPION, version)
     return Registered(version=version, run_id=run.info.run_id, promoted=promoted)

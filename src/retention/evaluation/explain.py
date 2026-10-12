@@ -32,7 +32,9 @@ def shap_values(pipeline: Pipeline, X: pd.DataFrame, background: pd.DataFrame) -
     `background` defines the "average customer" contributions are measured against (the training data).
     """
     preprocess, model = pipeline.named_steps["preprocess"], pipeline.named_steps["model"]
-    explainer = shap.LinearExplainer(model, shap.maskers.Independent(preprocess.transform(background)))
+    reference = preprocess.transform(background)
+    # Use the whole background: shap's default silently subsamples 100 rows, a noisy "average customer".
+    explainer = shap.LinearExplainer(model, shap.maskers.Independent(reference, max_samples=len(reference)))
     values = np.asarray(explainer.shap_values(preprocess.transform(X)))
     per_column = pd.DataFrame(values, index=X.index)
     per_feature = per_column.T.groupby(_original_feature_of_each_column(pipeline), sort=False).sum().T

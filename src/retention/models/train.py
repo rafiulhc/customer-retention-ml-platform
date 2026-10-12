@@ -146,6 +146,20 @@ def format_table(summary: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def model_selection(train: pd.DataFrame) -> tuple[str, pd.DataFrame, pd.DataFrame]:
+    """Cross-validate every candidate and log the comparison to MLflow (needs `configure()` first).
+
+    Returns the parent run id, the per-fold results and the summary (best model first).
+    """
+    from retention.models.experiment import log_cv_results  # here, not at the top: it imports this module
+
+    with start_run("model selection", tags={"stage": "model-selection"}) as run:
+        mlflow.log_param("train_rows", len(train))
+        results = cross_validate(train, candidates())
+        summary = log_cv_results(results, candidates(), reference=REFERENCE, cv_seed=SEED, final=FINAL_MODEL)
+    return run.info.run_id, results, summary
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     train = pd.read_parquet(PROCESSED_DIR / "train.parquet")
@@ -156,14 +170,9 @@ def main() -> int:
         CV_FOLDS,
     )
 
-    from retention.models.experiment import log_cv_results  # here, not at the top: it imports this module
-
     configure()
-    with start_run("model selection", tags={"stage": "model-selection"}) as run:
-        mlflow.log_param("train_rows", len(train))
-        results = cross_validate(train, candidates())
-        summary = log_cv_results(results, candidates(), reference=REFERENCE, cv_seed=SEED, final=FINAL_MODEL)
-    logger.info("Logged to MLflow: run %s (%d child runs)", run.info.run_id, len(summary))
+    run_id, results, summary = model_selection(train)
+    logger.info("Logged to MLflow: run %s (%d child runs)", run_id, len(summary))
     best = str(summary.index[0])
     comparison = paired_comparison(results, best)
 

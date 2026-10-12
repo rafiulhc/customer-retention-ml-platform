@@ -58,6 +58,12 @@ def load_champion(name: str = MODEL_NAME) -> tuple[PyFuncModel, ModelVersion]:
     return mlflow.pyfunc.load_model(f"models:/{name}/{version.version}"), version
 
 
+def load_version(version: str, name: str = MODEL_NAME) -> PyFuncModel:
+    """One specific registered version (e.g. a challenger that isn't champion yet)."""
+    model: PyFuncModel = mlflow.pyfunc.load_model(f"models:/{name}/{version}")
+    return model
+
+
 def predict_proba(model: PyFuncModel, X: pd.DataFrame) -> np.ndarray:
     """P(leaves) per customer: the second column of the model's [P(stays), P(leaves)] output."""
     return np.asarray(model.predict(X), dtype=np.float64)[:, 1]

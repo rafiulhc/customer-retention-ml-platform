@@ -1,5 +1,5 @@
 # Local MLOps services. Credentials here are for LOCAL DEVELOPMENT ONLY (on AWS: Secrets Manager).
-#   docker compose up -d        MLflow UI: http://localhost:5001
+#   docker compose up -d        MLflow UI: http://localhost:5001   Prefect UI: http://localhost:4200
 # Port 5001 because macOS uses 5000 for AirPlay Receiver.
 
 services:
@@ -70,16 +70,58 @@ services:
         condition: service_completed_successfully
     environment:
       <<: *s3-credentials
+      # MLflow 3's background job system (7 queue workers, ~1.5 GB) serves GenAI features we don't use
+      # (LLM trace scoring and archival). Classic ML tracking and the registry don't need it.
+      MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"
+    # --workers 2: the default (4) uses ~2 GB of RAM, more than one developer needs.
+    # (Comments can't go inside the folded command below: they would become arguments.)
     command: >
       mlflow server --host 0.0.0.0 --port 5000
       --backend-store-uri postgresql://mlflow:mlflow-local@postgres:5432/mlflow
       --artifacts-destination s3://mlflow-artifacts
       --serve-artifacts
+      --workers 2
       --allowed-hosts "localhost:*,127.0.0.1:*,mlflow:*"
     ports:
       - "5001:5000"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  create-prefect-db:
+    # One-off job: Prefect gets its own database in the same Postgres server (one less container).
+    image: postgres:17.11
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: mlflow-local
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        psql -h postgres -U mlflow -d mlflow -tAc "SELECT 1 FROM pg_database WHERE datname = 'prefect'" | grep -q 1
+        || psql -h postgres -U mlflow -d mlflow -c "CREATE DATABASE prefect"
+    restart: "no"
+
+  prefect:
+    # Orchestration server: UI, API, schedules and run history. Flows run elsewhere and report to it.
+    image: prefecthq/prefect:3.8.7-python3.12
+    depends_on:
+      create-prefect-db:
+        condition: service_completed_successfully
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://mlflow:mlflow-local@postgres:5432/prefect
+      PREFECT_SERVER_API_HOST: 0.0.0.0
+      PREFECT_UI_API_URL: http://localhost:4200/api
+      PREFECT_SERVER_ANALYTICS_ENABLED: "false"
+    command: ["prefect", "server", "start"]
+    ports:
+      - "4200:4200"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')\""]
       interval: 10s
       timeout: 5s
       retries: 12

@@ -123,15 +123,21 @@ def _check_once(client: MlflowClient, version: ModelVersion, force: bool) -> Non
         )
 
 
-def run(force: bool = False) -> dict[str, Any]:
+def run(force: bool = False, version_number: str | None = None) -> dict[str, Any]:
+    """Evaluate one model version on the test set (default: the one `@champion` points at)."""
     client = MlflowClient()
-    version = client.get_model_version_by_alias(MODEL_NAME, CHAMPION)
+    version = (
+        client.get_model_version(MODEL_NAME, version_number)
+        if version_number
+        else client.get_model_version_by_alias(MODEL_NAME, CHAMPION)
+    )
     _check_once(client, version, force)
 
     train_path, test_path = PROCESSED_DIR / "train.parquet", PROCESSED_DIR / "test.parquet"
     if sha256_of(train_path) != version.tags.get("data.train_sha256"):
         raise RuntimeError(
-            "The champion was trained on different data than train.parquet; re-register it first."
+            f"Version {version.version} was trained on different data than train.parquet; "
+            "re-register it first."
         )
     train, test = pd.read_parquet(train_path), pd.read_parquet(test_path)
 
