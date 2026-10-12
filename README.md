@@ -1,5 +1,7 @@
 # Customer Retention ML Platform
 
+[![CI](https://github.com/rafiulhc/customer-retention-ml-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/rafiulhc/customer-retention-ml-platform/actions/workflows/ci.yml)
+
 Predicts which customers are likely to cancel, so a customer-success team can step in before they leave,
 built end to end with production tooling: data validation, training, experiment tracking and a model
 registry, pipelines, serving, CI, cloud deployment, and drift monitoring with retraining.
@@ -50,3 +52,9 @@ uv run python -m retention.pipeline.score    # this week's call list -> data/out
 
 `POST /predict` returns churn risk, whether the customer is worth a call, the top reasons and the model version.
 Details: [docs/serving.md](docs/serving.md).
+
+## CI
+
+Every push runs lint, strict type checks, 132 tests, a dependency vulnerability audit, a **model check**
+(cross-validation against a committed baseline; never the test set) and a scan of the API image.
+Details: [docs/ci.md](docs/ci.md).
