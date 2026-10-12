@@ -21,19 +21,17 @@ import mlflow
 import mlflow.sklearn
 import pandas as pd
 from mlflow import MlflowClient
-from mlflow.exceptions import MlflowException
 from mlflow.models import infer_signature
 
 from retention.config import FEATURES, TARGET
 from retention.data.prepare import PROCESSED_DIR
+from retention.models.champion import CHAMPION, MODEL_NAME, current_champion, model_input
 from retention.models.experiment import model_params
 from retention.models.train import FINAL_MODEL, final_model
 from retention.tracking import configure, start_run
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "customer-retention-model"
-CHAMPION = "champion"
 DESCRIPTION = (
     "Probability that a customer cancels in the next period, used to rank customers for retention "
     "calls (top 10% each week). Input: one row per customer with the features in the signature. "
@@ -51,27 +49,9 @@ class Registered:
     promoted: bool
 
 
-def model_input(df: pd.DataFrame) -> pd.DataFrame:
-    """The model's input contract: the selected features, with categories as plain strings.
-
-    Requests to the API arrive as JSON strings, so the model is trained and served on the same form.
-    """
-    X = df[FEATURES].copy()
-    categories = X.select_dtypes("category").columns
-    return X.astype(dict.fromkeys(categories, str))
-
-
 def pip_requirements() -> list[str]:
     """The serving dependencies, pinned to the versions the model was trained with."""
     return [f"{package}=={installed_version(package)}" for package in RUNTIME_PACKAGES]
-
-
-def current_champion(client: MlflowClient, name: str = MODEL_NAME) -> str | None:
-    """The version the champion alias points at, or None if there isn't one yet."""
-    try:
-        return str(client.get_model_version_by_alias(name, CHAMPION).version)
-    except MlflowException:
-        return None
 
 
 def register(train: pd.DataFrame, *, promote: bool = False, name: str = MODEL_NAME) -> Registered:

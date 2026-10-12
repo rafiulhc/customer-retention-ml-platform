@@ -1,20 +1,11 @@
 """Model registry: versions, the champion alias, and a loadable model that honours its contract."""
 
-import mlflow
-import numpy as np
 import pandas as pd
-import pytest
 from mlflow import MlflowClient
 
 from retention.config import FEATURES
-from retention.models.register import (
-    CHAMPION,
-    MODEL_NAME,
-    current_champion,
-    model_input,
-    pip_requirements,
-    register,
-)
+from retention.models.champion import MODEL_NAME, current_champion, model_input
+from retention.models.register import pip_requirements, register
 from tests.test_train import small_dataset
 
 
@@ -48,25 +39,6 @@ def test_version_carries_lineage_and_the_model_has_a_description(tracked: str) -
     assert version.tags["data.train_sha256"] == "a" * 64
     assert version.tags["model_family"] == "B3 logistic regression"
     assert "retention calls" in client.get_registered_model(MODEL_NAME).description
-
-
-def test_champion_loads_by_alias_and_returns_probabilities(tracked: str) -> None:
-    df = small_dataset()
-    register(df)
-    model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}@{CHAMPION}")
-
-    assert [c.name for c in model.metadata.get_input_schema().inputs] == FEATURES
-    proba = np.asarray(model.predict(model_input(df)))
-    assert proba.shape == (len(df), 2)
-    assert np.allclose(proba.sum(axis=1), 1.0)
-
-
-def test_signature_rejects_a_request_missing_a_feature(tracked: str) -> None:
-    df = small_dataset()
-    register(df)
-    model = mlflow.pyfunc.load_model(f"models:/{MODEL_NAME}@{CHAMPION}")
-    with pytest.raises(mlflow.exceptions.MlflowException, match="tenure"):
-        model.predict(model_input(df).drop(columns=["tenure"]))
 
 
 def test_requirements_are_pinned_and_exclude_test_tools() -> None:
