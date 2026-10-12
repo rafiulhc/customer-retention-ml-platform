@@ -67,7 +67,11 @@ def decide(train: pd.DataFrame) -> dict[str, Any]:
     """Every decision, from out-of-fold training predictions only. The test set is not touched."""
     y = train[TARGET].to_numpy()
     oof = out_of_fold(train, final_model)
-    policy = choose_threshold(y, oof)
+    # The threshold answers "is this call worth making?", so it is chosen WITHOUT the capacity limit
+    # (with the limit, every threshold up to the capacity line gives the same list: it isn't identifiable).
+    # Capacity is applied separately, as a cap on the number of calls.
+    threshold = choose_threshold(y, oof, capacity_fraction=1.0).threshold
+    policy = Policy(threshold=threshold, capacity_fraction=CONTACT_FRACTION)
     curve = profit_curve(y, oof)
     best = int(np.argmax(curve["profit"].to_numpy()))
     return {
@@ -297,6 +301,7 @@ def _print(report: dict[str, Any]) -> None:
         if name in t["vs_b2"]:
             c = t["vs_b2"][name]
             line += f"{c['difference']:>+14.3f} [{c['ci_low']:+.3f}, {c['ci_high']:+.3f}]"
+            line += f"  P(not better) {c['prob_not_better']:.3f}"
         print(line)
     print(f"  success criteria: {t['success_criteria']} -> passed: {t['passed']}")
     p = t["policy"]
@@ -305,7 +310,8 @@ def _print(report: dict[str, Any]) -> None:
         f"precision {p['precision']:.2f}, "
         f"recall {p['recall']:.2f}, profit ${p['profit']:,.0f} (${p['profit_per_contact']:.0f}/contact)"
     )
-    print(f"  calibration on test: ECE {t['calibration']['ece']:.3f}; fairness recall gaps: {t['fairness']}")
+    gaps = ", ".join(f"{k.removeprefix('recall_gap_')} {v:.3f}" for k, v in t["fairness"].items())
+    print(f"  calibration on test: ECE {t['calibration']['ece']:.3f}; recall gap between groups: {gaps}")
     top = list(report["explanations"]["global_importance"].items())[:5]
     print("\nTop drivers (mean |SHAP|): " + ", ".join(f"{k} {v:.2f}" for k, v in top))
     for example in report["explanations"]["top_flagged_examples"][:3]:

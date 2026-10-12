@@ -72,6 +72,13 @@ def test_with_calibrated_scores_the_chosen_threshold_is_near_break_even() -> Non
     assert policy.threshold == pytest.approx(BUSINESS.break_even_probability, abs=0.03)
 
 
+def test_with_a_capacity_limit_the_threshold_is_just_the_capacity_line() -> None:
+    """Why the evaluation picks the threshold without the limit: with it, the answer isn't a decision rule."""
+    y, p = calibrated_sample(50_000)
+    capped = choose_threshold(y, p, capacity_fraction=0.10).threshold
+    assert capped > 0.85  # ~ the score of the 10%-th customer, far above break-even (0.22)
+
+
 # ---------- bootstrap ----------
 def test_identical_models_are_not_clearly_better() -> None:
     y, p = calibrated_sample(500)
