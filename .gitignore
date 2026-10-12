@@ -28,3 +28,4 @@ mlruns/
 
 # Generated reports (cross-validation results etc.); MLflow tracks runs from module 4
 reports/
+requirements-audit.txt

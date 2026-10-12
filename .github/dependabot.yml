@@ -1,0 +1,25 @@
+# Weekly update pull requests, each one run through CI. The 14-day cooldown matches the project's rule:
+# no release younger than two weeks (also enforced for Python packages by uv's exclude-newer).
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+  - package-ecosystem: docker
+    directories: ["/infra/api", "/infra/mlflow"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14

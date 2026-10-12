@@ -1,0 +1,96 @@
+# Every push and pull request: code quality, tests, a dependency audit, the model check, and the API image.
+# Actions are pinned to commit SHAs (a tag can be moved to point at different code; a SHA can't).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read  # least privilege: nothing here writes to the repo
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.12.19"  # same as infra/api/Dockerfile
+
+jobs:
+  quality:
+    name: Lint, types, tests, audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - name: Lockfile matches pyproject.toml
+        run: uv lock --check
+      - name: Install (exactly the locked versions)
+        run: uv sync --frozen
+      - name: Lint and format
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy src
+      - name: Tests
+        run: uv run pytest -q
+      - name: Known vulnerabilities in dependencies
+        run: |
+          uv export --frozen --all-groups --no-emit-project > requirements-audit.txt  # with hashes
+          uvx pip-audit==2.10.1 --strict --disable-pip -r requirements-audit.txt
+
+  model-check:
+    name: Model check (cross-validation, never the test set)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv sync --frozen --no-group dev --no-group pipeline
+      - name: Download (checksum-verified), validate and split the data
+        run: uv run python -m retention.data.prepare
+      - name: Compare with ci/model_baseline.json
+        run: uv run python -m retention.models.regression_check
+
+  image:
+    name: API image (build, scan, smoke test)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        with:
+          context: .
+          file: infra/api/Dockerfile
+          tags: retention-api:ci
+          load: true
+          push: false  # pushed to a registry in module 9
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Scan for fixable HIGH and CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: retention-api:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true  # fail only on what an update can fix
+          exit-code: "1"
+      - name: Smoke test (imports, non-root user, no training libraries)
+        run: |
+          docker run --rm --entrypoint python retention-api:ci -c "
+          import importlib.util, os, retention.serving.app
+          assert os.getuid() != 0, 'runs as root'
+          heavy = [m for m in ('xgboost', 'lightgbm', 'optuna', 'shap', 'prefect') if importlib.util.find_spec(m)]
+          assert not heavy, heavy
+          print('ok')"

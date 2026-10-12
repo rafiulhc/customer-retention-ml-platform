@@ -1,0 +1,12 @@
+{
+  "model": "B3 logistic regression",
+  "folds": 5,
+  "seed": 42,
+  "data_fingerprint": "00affe3e75191ddacdf577ed4b4d46317aa60d747ac8a80da60debd919616424",
+  "pr_auc_mean": 0.6617,
+  "pr_auc_std": 0.0223,
+  "profit_at_k_mean": 16052.24,
+  "folds_beating_b2_pr_auc": 5,
+  "folds_beating_b2_profit": 5,
+  "set_at_commit": "5e2f226"
+}
