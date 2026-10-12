@@ -18,8 +18,8 @@ from pathlib import Path
 import mlflow
 from dotenv import load_dotenv
 
+from retention import lineage as lin
 from retention.data.download import PROJECT_ROOT
-from retention.lineage import MANIFEST_PATH, lineage
 
 EXPERIMENT = "customer-retention"
 DEFAULT_TRACKING_URI = "http://localhost:5001"  # the docker compose stack
@@ -71,12 +71,11 @@ def start_run(
     *,
     nested: bool = False,
     tags: Mapping[str, str] | None = None,
-    manifest_path: Path = MANIFEST_PATH,
+    manifest_path: Path | None = None,
 ) -> Iterator[mlflow.ActiveRun]:
     """Open an MLflow run stamped with lineage. Extra `tags` are added (and win on clashes)."""
-    with mlflow.start_run(
-        run_name=run_name, nested=nested, tags={**lineage(manifest_path), **(tags or {})}
-    ) as run:
+    lineage_tags = lin.lineage(manifest_path or lin.MANIFEST_PATH)  # looked up per call: tests can swap it
+    with mlflow.start_run(run_name=run_name, nested=nested, tags={**lineage_tags, **(tags or {})}) as run:
         yield run
 
 
@@ -85,7 +84,7 @@ def main() -> int:
     experiment = mlflow.get_experiment_by_name(EXPERIMENT)
     print(f"tracking URI : {uri}")
     print(f"experiment   : {EXPERIMENT} (id {experiment.experiment_id if experiment else '?'})")
-    for key, value in lineage().items():
+    for key, value in lin.lineage().items():
         print(f"{key:<24} {value}")
     return 0
 

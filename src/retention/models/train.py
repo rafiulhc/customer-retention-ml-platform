@@ -9,9 +9,10 @@ import json
 import logging
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
+import mlflow
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
@@ -26,6 +27,7 @@ from retention.data.prepare import PROCESSED_DIR
 from retention.models.baselines import ContractRule, ContractTenureRule, NobodyLeaves
 from retention.models.features import model_pipeline
 from retention.models.metrics import evaluate
+from retention.tracking import configure, start_run
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +86,7 @@ def final_model() -> Any:
 
 
 def cross_validate(
-    df: pd.DataFrame, models: dict[str, Callable[[], Any]], folds: int = CV_FOLDS, seed: int = SEED
+    df: pd.DataFrame, models: Mapping[str, Callable[[], Any]], folds: int = CV_FOLDS, seed: int = SEED
 ) -> pd.DataFrame:
     """One row per (model, fold). Every model sees exactly the same folds, so comparisons are paired."""
     y = df[TARGET].to_numpy()
@@ -154,8 +156,14 @@ def main() -> int:
         CV_FOLDS,
     )
 
-    results = cross_validate(train, candidates())
-    summary = summarise(results)
+    from retention.models.experiment import log_cv_results  # here, not at the top: it imports this module
+
+    configure()
+    with start_run("model selection", tags={"stage": "model-selection"}) as run:
+        mlflow.log_param("train_rows", len(train))
+        results = cross_validate(train, candidates())
+        summary = log_cv_results(results, candidates(), reference=REFERENCE, cv_seed=SEED, final=FINAL_MODEL)
+    logger.info("Logged to MLflow: run %s (%d child runs)", run.info.run_id, len(summary))
     best = str(summary.index[0])
     comparison = paired_comparison(results, best)
 

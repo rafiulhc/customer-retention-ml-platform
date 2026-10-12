@@ -13,3 +13,14 @@ uv sync                          # create .venv with all dependencies
 uv run pre-commit install        # run lint/format checks before every commit
 uv run ruff check . && uv run mypy src && uv run pytest
 ```
+
+## Experiment tracking (MLflow)
+
+```bash
+cp .env.example .env             # once: tracking URI and local settings (no secrets)
+docker compose up -d --wait      # Postgres + SeaweedFS (S3) + MLflow server
+uv run python -m retention.tracking         # check the connection and the lineage tags
+uv run python -m retention.models.train     # model comparison -> MLflow
+```
+
+MLflow UI: <http://localhost:5001>. Run data lives in Docker volumes; `docker compose down` keeps it.

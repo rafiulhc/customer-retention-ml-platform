@@ -7,6 +7,9 @@ better calibrated, faster and directly explainable. **Runner-up: tuned XGBoost.*
 All numbers below are from **5-fold stratified cross-validation on the training set** (5,634 customers).
 The test set (1,409 customers) has **not** been used: it is evaluated once, in module 5.
 Reproduce with `uv run python -m retention.models.train` and `uv run python -m retention.models.tune`.
+Both scripts log to MLflow (experiment `customer-retention`): a parent run per comparison holding the verdict
+and the full tables, and one child run per model with its hyperparameters, mean ± std metrics, and per-fold
+scores. Every run is tagged with the git commit and the data checksums.
 
 ## 1. Comparison (same 5 folds for every model, seed 42)
 

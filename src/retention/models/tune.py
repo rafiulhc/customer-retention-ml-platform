@@ -16,6 +16,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
+import mlflow
 import numpy as np
 import optuna
 import pandas as pd
@@ -27,8 +28,10 @@ from xgboost import XGBClassifier
 
 from retention.config import CV_FOLDS, SEED, TARGET
 from retention.data.prepare import PROCESSED_DIR
+from retention.models.experiment import log_cv_results, log_study
 from retention.models.features import model_pipeline
-from retention.models.train import REPORTS_DIR, candidates, cross_validate, paired_comparison, summarise
+from retention.models.train import REPORTS_DIR, candidates, cross_validate, paired_comparison
+from retention.tracking import configure, start_run
 
 logger = logging.getLogger(__name__)
 
@@ -116,10 +119,25 @@ def main() -> int:
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     train = pd.read_parquet(PROCESSED_DIR / "train.parquet")
 
+    configure()
+    with start_run("tuning", tags={"stage": "tuning"}) as run:
+        mlflow.log_params({"train_rows": len(train), "fresh_seed": FRESH_SEED})
+        report = _tune_and_recheck(train)
+    logger.info("Logged to MLflow: run %s", run.info.run_id)
+
+    REPORTS_DIR.mkdir(exist_ok=True)
+    (REPORTS_DIR / "tuning.json").write_text(json.dumps(report, indent=2, default=float) + "\n")
+    logger.info("Report written to %s", REPORTS_DIR / "tuning.json")
+    return 0
+
+
+def _tune_and_recheck(train: pd.DataFrame) -> dict[str, Any]:
+    """Tune every family, then re-check tuned vs default on fresh folds. Logs into the active run."""
     report: dict[str, Any] = {"seed": SEED, "fresh_seed": FRESH_SEED, "families": {}}
     tuned: dict[str, Callable[[], Any]] = {}
     for family, (_, build, n_trials) in FAMILIES.items():
         study = tune(train, family)
+        log_study(study, n_trials=n_trials)
         pruned = sum(t.state == optuna.trial.TrialState.PRUNED for t in study.trials)
         logger.info(
             "%s: best CV PR-AUC %.4f after %d trials (%d pruned)", family, study.best_value, n_trials, pruned
@@ -140,8 +158,8 @@ def main() -> int:
         **tuned,
     }
     fresh = cross_validate(train, contenders, seed=FRESH_SEED)
-    summary = summarise(fresh)
     reference = "logistic regression (default)"
+    summary = log_cv_results(fresh, contenders, reference=reference, cv_seed=FRESH_SEED)
     print(f"\nRe-check on fresh folds (seed {FRESH_SEED}), mean ± std over {CV_FOLDS} folds:")
     for model, row in summary.iterrows():
         line = f"  {model!s:<34} PR-AUC {row[('pr_auc', 'mean')]:.4f} ± {row[('pr_auc', 'std')]:.4f}"
@@ -152,10 +170,8 @@ def main() -> int:
         print(line)
 
     report["fresh_folds"] = fresh.round(4).to_dict(orient="records")
-    REPORTS_DIR.mkdir(exist_ok=True)
-    (REPORTS_DIR / "tuning.json").write_text(json.dumps(report, indent=2, default=float) + "\n")
-    logger.info("Report written to %s", REPORTS_DIR / "tuning.json")
-    return 0
+    mlflow.log_dict(report, "tuning.json")
+    return report
 
 
 if __name__ == "__main__":
