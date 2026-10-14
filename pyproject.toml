@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 # Core = what serving needs (the API image installs only these). Training, the pipeline and dev tools
 # are dependency groups below; `uv sync` installs them all locally (see [tool.uv] default-groups).
 dependencies = [
-    "fastapi==0.141.1",
+    "fastapi==0.142.1",
     "mlflow-skinny==3.16.1",  # the MLflow client (registry, model loading); the server runs in Docker
     "numpy==2.5.3",
     "pandas==3.0.6",
@@ -26,14 +26,14 @@ dependencies = [
 retention = "retention:main"
 
 [build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]  # >= the uv pinned in infra/api/Dockerfile
+requires = ["uv_build>=0.12.21,<0.13.0"]  # >= the uv pinned in infra/api/Dockerfile
 build-backend = "uv_build"
 
 [dependency-groups]
 training = [
     "lightgbm==4.7.0",
     "matplotlib==3.11.2",
-    "optuna==4.9.0",
+    "optuna==5.0.0",
     "shap==0.52.0",
     # Same version on both platforms. On Linux the CPU-only build: the default one bundles 350 MB of
     # NVIDIA GPU libraries we never use (training runs on CPU).
@@ -46,7 +46,7 @@ pipeline = [
 ]
 dev = [
     "mlflow==3.16.1",  # full MLflow: the tests use its local SQLite tracking store
-    "ipykernel==7.3.0",
+    "ipykernel==7.4.0",
     "mypy==2.3.1",
     "pandas-stubs==3.0.5.260914",
     "pre-commit==4.6.2",
