@@ -2,7 +2,7 @@
 #   docker build -f infra/api/Dockerfile -t retention-api .
 # Base images are pinned by digest, so every build starts from exactly the same layers.
 
-FROM ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.2@sha256:b9fddcde095a7aeafd499024adb8927df6619c7c5672f5ff7126474715f62ba4 AS uv
 
 # ---------- build: resolve and install into a virtual environment ----------
 FROM python:3.12.15-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS build
